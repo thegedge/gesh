@@ -6,11 +6,14 @@
 //! * Command history
 //! * Completion,
 //! * Modes (vi/emacs)
+//!
 use std::io;
+use std::result;
 
 pub mod rustyline;
 
 /// Errors when reading commands
+///
 #[derive(Debug)]
 pub enum Error {
     /// Generic I/O error when trying to get input from the TTY
@@ -22,12 +25,19 @@ pub enum Error {
     /// Received a SIGINT
     Interrupted(),
 
-    /// Some other, unknown or uncategorized erro
+    /// Some other, unknown or uncategorized error
     Other(),
 }
+
+/// Result used by most `Reader` methods
+type Result<T> = result::Result<T, Error>;
 
 /// Abstraction for readline input
 pub trait Reader {
     /// Gets the next command from the input
-    fn get(&mut self) -> Result<String, Error>;
+    ///
+    /// # Errors
+    /// Everything in `Error`
+    ///
+    fn get(&mut self) -> Result<String>;
 }
