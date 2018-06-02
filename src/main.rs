@@ -1,20 +1,14 @@
-use std::io::{self, BufRead};
+use std::io;
 use std::process;
+
+mod input_loop;
 
 fn main() {
   let stdin = io::stdin();
-  let mut handle = stdin.lock();
-  let mut command_string = String::new();
+  let handle = stdin.lock();
 
-  loop {
-    match handle.read_line(&mut command_string) {
-      Ok(_) => {
-        print!("{}", command_string);
-      }
-      Err(err) => {
-        println!("error: {}", err);
-        process::exit(1);
-      }
-    }
-  };
+  if let Err(error) = input_loop::run(handle) {
+    println!("error: {}", error);
+    process::exit(1);
+  }
 }
