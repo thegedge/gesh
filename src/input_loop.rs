@@ -1,17 +1,43 @@
-use std::io::{Error, BufRead};
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 
 /// Executes an input loop for the shell.
 ///
-/// Reads characters from `input` until EOF is reached.
+/// Input is received via a readline-like UI, and should provide command history, completion,
+/// vi/emacs modes, and all the other bells and whistles that people expect out of their shell.
 ///
 /// # Errors
 ///
-/// Propagates any input errors received when reading from `input`
-pub fn run<R: BufRead>(mut input: R) -> Result<(), Error> {
-  let mut command_string = String::new();
+/// Propagates any input errors received when reading
+///
+pub fn run() -> Result<(), ReadlineError> {
+    let mut editor = Editor::<()>::new();
 
-  loop {
-    let _ = input.read_line(&mut command_string)?;
-    print!("{}", command_string);
-  };
+    if let Err(_) = editor.load_history("history.txt") {
+        // TODO write to a log file
+    }
+
+    loop {
+        match editor.readline(">> ") {
+            Ok(line) => {
+                editor.add_history_entry(&line);
+                println!("{}", line);
+            },
+            Err(ReadlineError::Interrupted) => {
+                continue
+            },
+            Err(ReadlineError::Eof) => {
+                break
+            },
+            Err(err) => {
+                return Err(err)
+            }
+        }
+    };
+
+    if let Err(_) = editor.save_history("history.txt") {
+        // TODO write to a log file
+    }
+
+    Ok(())
 }
