@@ -1,12 +1,18 @@
 extern crate rustyline;
 
-use std::process;
+mod shell;
+mod readline;
 
-mod input_loop;
+use std::process;
+use readline::rustyline::RustylineReader;
 
 fn main() {
-  if let Err(error) = input_loop::run() {
-    println!("error: {}", error);
+  let mut my_shell = shell::Shell {
+    reader: RustylineReader::new(),
+  };
+
+  if let Err(error) = my_shell.run() {
+    println!("error: {:?}", error);
     process::exit(1);
   }
 }
