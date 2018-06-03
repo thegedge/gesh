@@ -1,14 +1,20 @@
+#[macro_use]
+extern crate nom;
 extern crate rustyline;
 
-mod shell;
+mod parser;
 mod readline;
+mod shell;
 
-use std::process;
+use parser::Parser;
 use readline::rustyline::RustylineReader;
+use std::process;
+
 
 fn main() {
   let mut my_shell = shell::Shell {
     reader: RustylineReader::new(),
+    parser: Parser::new(),
   };
 
   if let Err(error) = my_shell.run() {

@@ -4,4 +4,5 @@ version = "0.1.0"
 authors = ["Jason Gedge <jason.gedge@shopify.com>"]
 
 [dependencies]
+nom = "4.0.0"
 rustyline = "1.0.0"
