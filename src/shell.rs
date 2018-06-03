@@ -44,7 +44,8 @@ impl<R: Reader> Shell<R> {
             };
 
             match parsed_line {
-                ParsedLine::Command(cmd) => println!("command: {:?}", cmd)
+                ParsedLine::Command(cmd) => println!("command: {:?}", cmd),
+                ParsedLine::Empty => continue,
             }
         }
         Ok(())

@@ -15,6 +15,9 @@ pub struct Parser;
 /// A line that has been parsed
 #[derive(Clone, Debug)]
 pub enum ParsedLine {
+    /// Represents an empty parse (a "no op")
+    Empty,
+
     /// The name of a command. This could be either a builtin, alias, function, or command
     /// that exists on the path
     Command(String)
@@ -29,19 +32,21 @@ type Result<T> = result::Result<T, Error>;
 
 /// Parses a command
 named!(
-    command(CompleteStr) -> String,
+    command(CompleteStr) -> ParsedLine,
     map!(
         take_while1!(is_command_character),
-        |v| String::from(v.as_ref())
+        |v| ParsedLine::Command(String::from(v.as_ref()))
     )
 );
 
 /// Parses an arbitrary line
 named!(
     parse_line(CompleteStr) -> ParsedLine,
-    map!(
-        command,
-        ParsedLine::Command
+    ws!(
+        alt!(
+            command
+            | map!(eof!(), |_v| ParsedLine::Empty)
+        )
     )
 );
 
@@ -69,7 +74,10 @@ impl Parser {
     /// Parses `line` into a structured result that can be executed by a shell.
     ///
     pub fn parse<S: AsRef<str>>(&self, line: &S) -> Result<ParsedLine> {
-        match parse_line(CompleteStr(line.as_ref())) {
+        let parse_result = parse_line(CompleteStr(line.as_ref()));
+        println!("{:?}", parse_result);
+
+        match parse_result {
             Ok((_, parsed_line)) => Ok(parsed_line),
             Err(nom::Err::Incomplete(_)) => Err(Error),
             Err(nom::Err::Error(_)) => Err(Error),
