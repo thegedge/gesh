@@ -18,9 +18,9 @@ use parser::{
 
 /// A user shell.
 ///
-pub struct Shell<R: Reader> {
+pub struct Shell<R: Reader, P: Parser> {
     pub reader: R,
-    pub parser: Parser,
+    pub parser: P,
 }
 
 /// Enumeration of all possible errors that can occur in the shell.
@@ -31,7 +31,7 @@ pub enum Error {
     ParserError(parser::Error),
 }
 
-impl<R: Reader> Shell<R> {
+impl<R: Reader, P: Parser> Shell<R, P> {
     /// Runs the shell's main read -> parse -> execute loop.
     ///
     pub fn run(&mut self) -> Result<(), Error> {

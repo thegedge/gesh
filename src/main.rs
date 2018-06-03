@@ -6,7 +6,7 @@ mod parser;
 mod readline;
 mod shell;
 
-use parser::Parser;
+use parser::GeshlParser;
 use readline::rustyline::RustylineReader;
 use std::process;
 
@@ -14,7 +14,7 @@ use std::process;
 fn main() {
   let mut my_shell = shell::Shell {
     reader: RustylineReader::new(),
-    parser: Parser::new(),
+    parser: GeshlParser::new(),
   };
 
   if let Err(error) = my_shell.run() {
