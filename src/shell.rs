@@ -16,6 +16,11 @@ use parser::{
     Parser,
 };
 
+use environment::{
+    self,
+    Environment,
+};
+
 /// A user shell.
 ///
 pub struct Shell<R: Reader, P: Parser> {
@@ -27,8 +32,9 @@ pub struct Shell<R: Reader, P: Parser> {
 ///
 #[derive(Debug)]
 pub enum Error {
-    ReadlineError(readline::Error),
+    EnvironmentError(environment::Error),
     ParserError(parser::Error),
+    ReadlineError(readline::Error),
 }
 
 impl<R: Reader, P: Parser> Shell<R, P> {
@@ -44,7 +50,10 @@ impl<R: Reader, P: Parser> Shell<R, P> {
             };
 
             match parsed_line {
-                ParsedLine::Command(cmd) => println!("command: {:?}", cmd),
+                ParsedLine::Command(cmd) => {
+                    let result = Environment::new().execute(&cmd);
+                    println!("{:?}", result);
+                },
                 ParsedLine::Empty => continue,
             }
         }
@@ -52,14 +61,20 @@ impl<R: Reader, P: Parser> Shell<R, P> {
     }
 }
 
-impl From<readline::Error> for Error {
-    fn from(err: readline::Error) -> Self {
-        Error::ReadlineError(err)
+impl From<environment::Error> for Error {
+    fn from(err: environment::Error) -> Self {
+        Error::EnvironmentError(err)
     }
 }
 
 impl From<parser::Error> for Error {
     fn from(err: parser::Error) -> Self {
         Error::ParserError(err)
+    }
+}
+
+impl From<readline::Error> for Error {
+    fn from(err: readline::Error) -> Self {
+        Error::ReadlineError(err)
     }
 }

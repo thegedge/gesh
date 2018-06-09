@@ -2,6 +2,7 @@
 extern crate nom;
 extern crate rustyline;
 
+mod environment;
 mod parser;
 mod readline;
 mod shell;
