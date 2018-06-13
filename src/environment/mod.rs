@@ -2,6 +2,7 @@
 //!
 use std::{
     env,
+    ffi::OsStr,
     fs,
     os::unix::fs::PermissionsExt,
     path::PathBuf,
@@ -13,6 +14,7 @@ use std::{
 };
 
 /// The error type for environment errors.
+///
 #[derive(Debug)]
 pub enum Error {
     /// Command wasn't found on the path
@@ -23,6 +25,7 @@ pub enum Error {
 }
 
 /// A specialized result type for environment functions.
+///
 pub type Result<T> = result::Result<T, Error>;
 
 /// Supports executing commands within the context of a specific environment.
@@ -51,10 +54,14 @@ impl Environment {
     ///
     /// If found, returns the exit status of the command. 
     ///
-    pub fn execute<T: Into<PathBuf>>(&self, command: T) -> Result<ExitStatus> {
+    pub fn execute<T, S, A>(&self, command: T, args: S) -> Result<ExitStatus>
+        where T: Into<PathBuf>,
+              S: IntoIterator<Item = A>,
+              A: AsRef<OsStr>
+    {
         let absolute_command = self.find_executable(&command.into());
         if let Some(path) = absolute_command {
-            Command::new(path).status().map_err(|_| Error::Unknown)
+            Command::new(path).args(args).status().map_err(|_| Error::Unknown)
         } else {
             Err(Error::CommandNotFound)
         }
@@ -66,7 +73,6 @@ impl Environment {
         if command.is_absolute() {
             Some(command.clone())
         } else {
-            println!("{:?}", self.paths);
             self.paths.iter().find(
                 |path| self.is_executable(&path.join(command))
             ).map(

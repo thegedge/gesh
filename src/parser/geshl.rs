@@ -8,6 +8,10 @@
 use nom::{
     self,
     types::CompleteStr,
+    AsChar,
+    FindToken,
+    InputTakeAtPosition,
+    IResult,
 };
 
 use parser::{
@@ -17,19 +21,72 @@ use parser::{
     Result,
 };
 
-/// A parser for geshl
+
+/// A parser for geshl.
+///
 pub struct Parser; 
 
-/// Parses a command
+/// Space-separated parsing, which doesn't included newlines/carriage returns
+///
+fn space<'a, T>(input: T) -> IResult<T, T>
+where
+  T: InputTakeAtPosition,
+  <T as InputTakeAtPosition>::Item: AsChar + Clone,
+  &'a str: FindToken<<T as InputTakeAtPosition>::Item>,
+{
+  input.split_at_position(|item| {
+    let c = item.clone().as_char();
+    !c.is_whitespace() || c == '\n' || c == '\r'
+  })
+}
+
+macro_rules! spaced (
+  ($i:expr, $($args:tt)*) => (
+    {
+      use nom::{Convert, Err};
+
+      let (i1, o) = sep!($i, space, $($args)*)?;
+      match space(i1) {
+        Err(e) => Err(Err::convert(e)),
+        Ok((i2, _)) => Ok((i2, o))
+      }
+    }
+  )
+);
+
+/// Parses a command and its arguments.
+///
 named!(
     command(CompleteStr) -> ParsedLine,
     map!(
-        take_while1!(is_command_character),
-        |v| ParsedLine::Command(String::from(v.as_ref()))
+        spaced!(
+            do_parse!(
+                command: argument >>
+                args: many0!(argument) >>
+                (command, args)
+            )
+        ),
+        |(command, args)| {
+            ParsedLine::Command(
+                String::from(command.as_ref()),
+                Vec::from(args),
+            )
+        }
     )
 );
 
-/// Parses an arbitrary line
+/// Parses an "argument" from the command line.
+///
+named!(
+    argument(CompleteStr) -> String,
+    map!(
+        take_while1!(is_command_character),
+        |v| String::from(v.as_ref())
+    )
+);
+
+/// Parses an arbitrary line.
+///
 named!(
     parse_line(CompleteStr) -> ParsedLine,
     ws!(
@@ -40,16 +97,14 @@ named!(
     )
 );
 
-/// Returns `true` if `chr` is valid as a character in a command name.
-///
-/// Return `false` otherwise.
+/// Returns whether or not `chr` is valid as a character in a command name.
 ///
 fn is_command_character(chr: char) -> bool {
     match chr {
         'a'...'z' => true,
         'A'...'Z' => true,
         '0'...'9' => true,
-        '-' | '_' => true,
+        '-' | '_' | '/' | '.' => true,
         _ => false,
     }
 }

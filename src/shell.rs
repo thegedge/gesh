@@ -50,8 +50,8 @@ impl<R: Reader, P: Parser> Shell<R, P> {
             };
 
             match parsed_line {
-                ParsedLine::Command(cmd) => {
-                    let result = Environment::new().execute(&cmd);
+                ParsedLine::Command(cmd, args) => {
+                    let result = Environment::new().execute(cmd, args);
                     println!("{:?}", result);
                 },
                 ParsedLine::Empty => continue,

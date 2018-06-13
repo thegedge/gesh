@@ -24,7 +24,7 @@ pub enum ParsedLine {
 
     /// The name of a command. This could be either a builtin, alias, function, or command
     /// that exists on the path
-    Command(String)
+    Command(String, Vec<String>)
 }
 
 /// A parser for shells
