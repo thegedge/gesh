@@ -10,7 +10,7 @@ use super::{
 
 /// Enumeration of possible string types that can be supplied on the command line.
 ///
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ShellString {
     /// A string that contains values that may need to be interpolated within an environment.
     Interpolated(InterpolatedString),
@@ -20,7 +20,7 @@ pub enum ShellString {
 }
 
 /// A component of an interpolated string
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Piece {
     /// A fixed string.
     Fixed(String),
@@ -56,7 +56,7 @@ impl Piece {
 }
 
 /// A string that may contain pieces which need to be interpolated within an environment.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct InterpolatedString {
     pieces: Vec<Piece>
 }

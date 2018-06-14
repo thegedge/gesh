@@ -20,7 +20,7 @@ pub struct Error;
 pub type Result<T> = result::Result<T, Error>;
 
 /// A line that has been parsed
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ParsedLine {
     /// Represents an empty parse (a "no op")
     Empty,
