@@ -12,6 +12,7 @@ use nom::{
     FindToken,
     InputTakeAtPosition,
     IResult,
+    Needed,
 };
 
 use parser::{
@@ -118,7 +119,18 @@ named!(
 named!(
     fixed_string(CompleteStr) -> Piece,
     map!(
-        take_until_either!("$\""),
+        escaped_transform!(
+            none_of!("$\"\\"),
+            '\\',
+            alt!(
+                tag!("\\") => { |_| "\\" }
+                | tag!("\"") => { |_| "\"" }
+                | tag!("\'") => { |_| "'" }
+                | tag!("n") => { |_| "\n" }
+                | tag!("r") => { |_| "\r" }
+                | tag!("t") => { |_| "\t" }
+            )
+        ),
         |v| Piece::Fixed(String::from(v.as_ref()))
     )
 );
@@ -130,7 +142,14 @@ named!(
     map!(
         delimited!(
             tag!("'"),
-            take_until!("'"),
+            escaped_transform!(
+                none_of!("'\\"),
+                '\\',
+                alt!(
+                    tag!("\\") => { |_| "\\" }
+                    | tag!("\'") => { |_| "'" }
+                )
+            ),
             tag!("'")
         ),
         |v| ShellString::Uninterpolated(String::from(v.as_ref()))
