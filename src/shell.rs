@@ -48,7 +48,7 @@ impl<R: Reader, P: Parser> Shell<R, P> {
     pub fn run(&mut self) -> Result<(), Error> {
         loop {
             let parsed_line = match self.reader.get() {
-                Ok(raw_line) => self.parser.parse(&raw_line)?,
+                Ok(raw_line) => self.parser.parse(raw_line)?,
                 Err(readline::Error::Eof()) => break,
                 Err(readline::Error::Interrupted()) => continue,
                 Err(err) => return Err(Error::ReadlineError(err)),

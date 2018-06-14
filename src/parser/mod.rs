@@ -34,5 +34,5 @@ pub enum ParsedLine {
 pub trait Parser {
     /// Parses `line` into a structured result that can be executed by a shell.
     ///
-    fn parse<S: AsRef<str>>(&self, line: &S) -> Result<ParsedLine>;
+    fn parse(&self, line: String) -> Result<ParsedLine>;
 }

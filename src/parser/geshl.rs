@@ -7,7 +7,6 @@
 //!
 use nom::{
     self,
-    types::CompleteStr,
     AsChar,
     FindToken,
     InputTakeAtPosition,
@@ -27,7 +26,6 @@ use strings::{
     ShellString,
 };
 
-
 /// A parser for geshl.
 ///
 pub struct Parser; 
@@ -40,10 +38,10 @@ where
   <T as InputTakeAtPosition>::Item: AsChar + Clone,
   &'a str: FindToken<<T as InputTakeAtPosition>::Item>,
 {
-  input.split_at_position(|item| {
-    let c = item.clone().as_char();
-    !c.is_whitespace() || c == '\n' || c == '\r'
-  })
+    input.split_at_position(|item| {
+        let c = item.clone().as_char();
+        !c.is_whitespace() || c == '\n' || c == '\r'
+    })
 }
 
 macro_rules! spaced (
@@ -63,7 +61,7 @@ macro_rules! spaced (
 /// Parses a command and its arguments.
 ///
 named!(
-    command(CompleteStr) -> ParsedLine,
+    command(&str) -> ParsedLine,
     spaced!(
         do_parse!(
             command: argument
@@ -76,11 +74,9 @@ named!(
 /// Parses an "argument" from the command line.
 ///
 named!(
-    argument(CompleteStr) -> ShellString,
+    argument(&str) -> ShellString,
     alt!(
-        take_while1!(is_command_character) => { |v: CompleteStr|
-            ShellString::Uninterpolated(String::from(v.as_ref()))
-        }
+        take_while1!(is_command_character) => { |v: &str| ShellString::Uninterpolated(v.to_owned()) }
         | interpolated_string
         | uninterpolated_string
     )
@@ -89,35 +85,35 @@ named!(
 /// Parses an interpolated string from the command line.
 ///
 named!(
-    interpolated_string(CompleteStr) -> ShellString,
+    interpolated_string(&str) -> ShellString,
     map!(
         delimited!(
-            tag!("\""),
-            many0!(alt!(env_var | fixed_string)),
-            tag!("\"")
+            char!('"'),
+            many_till!(alt!(env_var | fixed_string), peek!(char!('"'))),
+            char!('"')
         ),
-        |v| ShellString::from(v)
+        |v| ShellString::from(v.0)
     )
 );
 
 /// Parses an environment variable.
 ///
 named!(
-    env_var(CompleteStr) -> Piece,
+    env_var(&str) -> Piece,
     map!(
         do_parse!(
             tag!("$")
             >> var: delimited!(tag!("{"), take_until!("}"), tag!("}"))
             >> (var)
         ),
-        |v| Piece::Variable(String::from(v.as_ref()))
+        |v| Piece::Variable(v.to_owned())
     )
 );
 
 /// Parses regular text inside of an interpolated string.
 ///
 named!(
-    fixed_string(CompleteStr) -> Piece,
+    fixed_string(&str) -> Piece,
     map!(
         escaped_transform!(
             none_of!("$\"\\"),
@@ -131,14 +127,14 @@ named!(
                 | tag!("t") => { |_| "\t" }
             )
         ),
-        |v| Piece::Fixed(String::from(v.as_ref()))
+        |v| Piece::Fixed(v.to_owned())
     )
 );
 
 /// Parses an uninterpolated string from the command line.
 ///
 named!(
-    uninterpolated_string(CompleteStr) -> ShellString,
+    uninterpolated_string(&str) -> ShellString,
     map!(
         delimited!(
             tag!("'"),
@@ -152,19 +148,17 @@ named!(
             ),
             tag!("'")
         ),
-        |v| ShellString::Uninterpolated(String::from(v.as_ref()))
+        |v| ShellString::Uninterpolated(v.to_owned())
     )
 );
 
 /// Parses an arbitrary line.
 ///
 named!(
-    parse_line(CompleteStr) -> ParsedLine,
-    ws!(
-        alt!(
-            command
-            | map!(eof!(), |_v| ParsedLine::Empty)
-        )
+    parse_line(&str) -> ParsedLine,
+    alt!(
+        command
+        | char!('\n') => { |_| ParsedLine::Empty }
     )
 );
 
@@ -191,10 +185,10 @@ impl Parser {
 impl parser::Parser for Parser {
     /// Parses `line` into a structured result that can be executed by a shell.
     ///
-    fn parse<S: AsRef<str>>(&self, line: &S) -> Result<ParsedLine> {
-        let parse_result = parse_line(CompleteStr(line.as_ref()));
-        //println!("{:?}", parse_result);
+    fn parse(&self, mut line: String) -> Result<ParsedLine> {
+        line.push('\n');
 
+        let parse_result = parse_line(&line);
         match parse_result {
             Ok((_, parsed_line)) => Ok(parsed_line),
             Err(nom::Err::Incomplete(_)) => Err(Error),
