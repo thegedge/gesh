@@ -80,8 +80,34 @@ named!(
 named!(
     argument(CompleteStr) -> String,
     map!(
-        take_while1!(is_command_character),
+        alt!(
+            take_while1!(is_command_character) |
+            interpolated_string |
+            uninterpolated_string
+        ),
         |v| String::from(v.as_ref())
+    )
+);
+
+/// Parses an interpolated string from the command line.
+///
+named!(
+    interpolated_string(CompleteStr) -> CompleteStr,
+    delimited!(
+        tag!("\""),
+        take_until!("\""),
+        tag!("\"")
+    )
+);
+
+/// Parses an uninterpolated string from the command line.
+///
+named!(
+    uninterpolated_string(CompleteStr) -> CompleteStr,
+    delimited!(
+        tag!("'"),
+        take_until!("'"),
+        tag!("'")
     )
 );
 
