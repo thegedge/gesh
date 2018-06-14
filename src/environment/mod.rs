@@ -1,8 +1,8 @@
 //! Encapsulates the environment in which commands within a shell executes.
 //!
 use std::{
+    collections::HashMap,
     env,
-    ffi::OsStr,
     fs,
     os::unix::fs::PermissionsExt,
     path::PathBuf,
@@ -25,15 +25,13 @@ pub enum CommandError {
 
     /// Generic error for unknown/uncateogrized errors
     Unknown,
-
-    /// Interpolation error
-    FailedInterpolation(env::VarError),
 }
 
 /// Supports executing commands within the context of a specific environment.
 ///
 pub struct Environment {
-    paths: Vec<PathBuf>
+    paths: Vec<PathBuf>,
+    vars: HashMap<String, String>,
 }
 
 impl Environment {
@@ -41,22 +39,39 @@ impl Environment {
     ///
     /// Defaults to containing the same paths as the shell's PATH environment variable.
     ///
-    pub fn new() -> Environment {
-        let paths = match env::var_os("PATH") {
+    pub fn new(vars: HashMap<String, String>) -> Environment {
+        let paths = match vars.get("PATH") {
             Some(paths) => env::split_paths(&paths).collect(),
             None => vec![]
         };
 
         Environment {
-            paths: paths
+            paths: paths,
+            vars: vars,
         }
+    }
+
+    ///
+    ///
+    pub fn from_existing_env() -> Environment {
+        let vars = env::vars();
+        let capacity = vars.size_hint().1.unwrap_or(0);
+        Self::new(vars.fold(
+            HashMap::with_capacity(capacity),
+            |mut result, (name, value)| {
+                result.insert(name, value);
+                result
+            }
+        ))
     }
 
     /// Gets the value of a variable from this environment.
     ///
-    pub fn var<T: AsRef<OsStr>>(&self, name: T) -> Result<String, env::VarError> {
-        // TODO get a set of env vars on shell boot, then clone that env for further execs/forks
-        env::var(name)
+    pub fn var(&self, name: &String) -> Option<String> {
+        match self.vars.get(name) {
+            Some(s) => Some(s.clone()),
+            None => None,
+        }
     }
 
     /// Executes `command` within this environment.
@@ -70,8 +85,12 @@ impl Environment {
         let absolute_command = self.find_executable(&command.into());
         if let Some(path) = absolute_command {
             let mapped_args = args.into_iter().map(|a| a.to_string(&self));
-            let interpolated_args: Result<Vec<String>, env::VarError> = mapped_args.collect();
-            Command::new(path).args(interpolated_args?).status().map_err(|_| CommandError::Unknown)
+            let interpolated_args = mapped_args.collect::<Option<Vec<_>>>().unwrap_or(vec![]);
+            Command::new(path)
+                .args(interpolated_args)
+                .envs(self.vars.clone().iter())
+                .status()
+                .map_err(|_| CommandError::Unknown)
         } else {
             Err(CommandError::CommandNotFound)
         }
@@ -101,11 +120,5 @@ impl Environment {
             },
             _ => false,
         }
-    }
-}
-
-impl From<env::VarError> for CommandError {
-    fn from(err: env::VarError) -> Self {
-        CommandError::FailedInterpolation(err)
     }
 }

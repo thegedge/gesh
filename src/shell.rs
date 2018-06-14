@@ -56,10 +56,14 @@ impl<R: Reader, P: Parser> Shell<R, P> {
 
             match parsed_line {
                 ParsedLine::Command(cmd, args) => {
-                    let env = Environment::new();
-                    let interpolated_cmd = cmd.to_string(&env)?;
-                    let result = env.execute(interpolated_cmd, args);
-                    println!("{:?}", result);
+                    let env = Environment::from_existing_env();
+                    match cmd.to_string(&env) {
+                        Some(interpolated_cmd) => {
+                            let result = env.execute(interpolated_cmd, args);
+                            println!("{:?}", result);
+                        },
+                        None => println!("No command given!")
+                    }
                 },
                 ParsedLine::Empty => continue,
             }

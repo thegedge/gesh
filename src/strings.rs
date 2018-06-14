@@ -1,9 +1,5 @@
 //! Provides string types that can be interpolated within an environment.
 //!
-use std::{
-    env::VarError,
-};
-
 use super::{
     environment::Environment,
 };
@@ -32,10 +28,10 @@ pub enum Piece {
 impl ShellString {
     /// Converts this shell string into an `OsStr`, interpolating with the given `Environment`.
     ///
-    pub fn to_string(&self, env: &Environment) -> Result<String, VarError> {
+    pub fn to_string(&self, env: &Environment) -> Option<String> {
         match &self {
             ShellString::Interpolated(ref s) => s.interpolate(env),
-            ShellString::Uninterpolated(ref s) => Ok(s.clone()),
+            ShellString::Uninterpolated(ref s) => Some(s.clone()),
         }
     }
 }
@@ -43,14 +39,10 @@ impl ShellString {
 impl Piece {
     /// Converts this piece into a `String` with a given environment
     ///
-    pub fn to_string(&self, env: &Environment) -> Result<String, VarError> {
+    pub fn to_string(&self, env: &Environment) -> Option<String> {
         match &self {
-            Piece::Fixed(ref s) => Ok(s.clone()),
-            Piece::Variable(ref name) => match env.var(name) {
-                Ok(v) => Ok(v),
-                Err(VarError::NotPresent) => Ok(String::new()),
-                Err(e) => Err(e),
-            }
+            Piece::Fixed(ref s) => Some(s.clone()),
+            Piece::Variable(ref name) => env.var(&name),
         }
     }
 }
@@ -70,7 +62,7 @@ impl From<Vec<Piece>> for ShellString {
 }
 
 impl InterpolatedString {
-    pub fn interpolate(&self, env: &Environment) -> Result<String, VarError> {
+    pub fn interpolate(&self, env: &Environment) -> Option<String> {
         // TODO estimate string size to avoid unnecessary allocations
         self.pieces.iter().skip(1).fold(
             self.pieces[0].to_string(env),
@@ -78,7 +70,7 @@ impl InterpolatedString {
                 acc.and_then(|mut v| {
                     let piece_str = piece.to_string(env)?;
                     v.push_str(&piece_str);
-                    Ok(v)
+                    Some(v)
                 })
             }
         )
