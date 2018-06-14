@@ -5,6 +5,10 @@
 //! * Command parsing
 //! * Job management
 //!
+use std::{
+    env,
+};
+
 use readline::{
     self,
     Reader,
@@ -32,7 +36,8 @@ pub struct Shell<R: Reader, P: Parser> {
 ///
 #[derive(Debug)]
 pub enum Error {
-    EnvironmentError(environment::Error),
+    CommandError(environment::CommandError),
+    VarError(env::VarError),
     ParserError(parser::Error),
     ReadlineError(readline::Error),
 }
@@ -52,7 +57,7 @@ impl<R: Reader, P: Parser> Shell<R, P> {
             match parsed_line {
                 ParsedLine::Command(cmd, args) => {
                     let env = Environment::new();
-                    let interpolated_cmd = cmd.to_string(&env);
+                    let interpolated_cmd = cmd.to_string(&env)?;
                     let result = env.execute(interpolated_cmd, args);
                     println!("{:?}", result);
                 },
@@ -63,9 +68,15 @@ impl<R: Reader, P: Parser> Shell<R, P> {
     }
 }
 
-impl From<environment::Error> for Error {
-    fn from(err: environment::Error) -> Self {
-        Error::EnvironmentError(err)
+impl From<environment::CommandError> for Error {
+    fn from(err: environment::CommandError) -> Self {
+        Error::CommandError(err)
+    }
+}
+
+impl From<env::VarError> for Error {
+    fn from(err: env::VarError) -> Self {
+        Error::VarError(err)
     }
 }
 

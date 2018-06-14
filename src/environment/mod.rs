@@ -2,6 +2,7 @@
 //!
 use std::{
     env,
+    ffi::OsStr,
     fs,
     os::unix::fs::PermissionsExt,
     path::PathBuf,
@@ -9,7 +10,6 @@ use std::{
         Command,
         ExitStatus,
     },
-    result,
 };
 
 use super::{
@@ -19,17 +19,16 @@ use super::{
 /// The error type for environment errors.
 ///
 #[derive(Debug)]
-pub enum Error {
+pub enum CommandError {
     /// Command wasn't found on the path
     CommandNotFound,
 
     /// Generic error for unknown/uncateogrized errors
     Unknown,
-}
 
-/// A specialized result type for environment functions.
-///
-pub type Result<T> = result::Result<T, Error>;
+    /// Interpolation error
+    FailedInterpolation(env::VarError),
+}
 
 /// Supports executing commands within the context of a specific environment.
 ///
@@ -53,20 +52,28 @@ impl Environment {
         }
     }
 
+    /// Gets the value of a variable from this environment.
+    ///
+    pub fn var<T: AsRef<OsStr>>(&self, name: T) -> Result<String, env::VarError> {
+        // TODO get a set of env vars on shell boot, then clone that env for further execs/forks
+        env::var(name)
+    }
+
     /// Executes `command` within this environment.
     ///
     /// If found, returns the exit status of the command. 
     ///
-    pub fn execute<T, S>(&self, command: T, args: S) -> Result<ExitStatus>
+    pub fn execute<T, S>(&self, command: T, args: S) -> Result<ExitStatus, CommandError>
         where T: Into<PathBuf>,
               S: IntoIterator<Item = ShellString>,
     {
         let absolute_command = self.find_executable(&command.into());
         if let Some(path) = absolute_command {
-            let interpolated_args = args.into_iter().map(|a| a.to_string(&self));
-            Command::new(path).args(interpolated_args).status().map_err(|_| Error::Unknown)
+            let mapped_args = args.into_iter().map(|a| a.to_string(&self));
+            let interpolated_args: Result<Vec<String>, env::VarError> = mapped_args.collect();
+            Command::new(path).args(interpolated_args?).status().map_err(|_| CommandError::Unknown)
         } else {
-            Err(Error::CommandNotFound)
+            Err(CommandError::CommandNotFound)
         }
     }
 
@@ -94,5 +101,11 @@ impl Environment {
             },
             _ => false,
         }
+    }
+}
+
+impl From<env::VarError> for CommandError {
+    fn from(err: env::VarError) -> Self {
+        CommandError::FailedInterpolation(err)
     }
 }

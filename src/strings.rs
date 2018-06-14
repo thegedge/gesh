@@ -1,7 +1,7 @@
 //! Provides string types that can be interpolated within an environment.
 //!
 use std::{
-    ffi::OsString
+    env::VarError,
 };
 
 use super::{
@@ -32,10 +32,10 @@ pub enum Piece {
 impl ShellString {
     /// Converts this shell string into an `OsStr`, interpolating with the given `Environment`.
     ///
-    pub fn to_string(&self, env: &Environment) -> OsString {
+    pub fn to_string(&self, env: &Environment) -> Result<String, VarError> {
         match &self {
-            ShellString::Interpolated(ref s) => OsString::from(s.interpolate(env)),
-            ShellString::Uninterpolated(ref s) => OsString::from(s),
+            ShellString::Interpolated(ref s) => s.interpolate(env),
+            ShellString::Uninterpolated(ref s) => Ok(s.clone()),
         }
     }
 }
@@ -43,10 +43,14 @@ impl ShellString {
 impl Piece {
     /// Converts this piece into a `String` with a given environment
     ///
-    pub fn to_string(&self, env: &Environment) -> String {
+    pub fn to_string(&self, env: &Environment) -> Result<String, VarError> {
         match &self {
-            Piece::Fixed(ref s) => s.clone(),
-            Piece::Variable(ref name) => String::from("<todo>"),
+            Piece::Fixed(ref s) => Ok(s.clone()),
+            Piece::Variable(ref name) => match env.var(name) {
+                Ok(v) => Ok(v),
+                Err(VarError::NotPresent) => Ok(String::new()),
+                Err(e) => Err(e),
+            }
         }
     }
 }
@@ -66,8 +70,17 @@ impl From<Vec<Piece>> for ShellString {
 }
 
 impl InterpolatedString {
-    pub fn interpolate(&self, env: &Environment) -> String {
+    pub fn interpolate(&self, env: &Environment) -> Result<String, VarError> {
         // TODO estimate string size to avoid unnecessary allocations
-        self.pieces.iter().fold(String::new(), |mut s, v| { s.push_str(&v.to_string(env)); s })
+        self.pieces.iter().skip(1).fold(
+            self.pieces[0].to_string(env),
+            |acc, piece| {
+                acc.and_then(|mut v| {
+                    let piece_str = piece.to_string(env)?;
+                    v.push_str(&piece_str);
+                    Ok(v)
+                })
+            }
+        )
     }
 }
