@@ -2,7 +2,6 @@
 //!
 use std::{
     env,
-    ffi::OsStr,
     fs,
     os::unix::fs::PermissionsExt,
     path::PathBuf,
@@ -11,6 +10,10 @@ use std::{
         ExitStatus,
     },
     result,
+};
+
+use super::{
+    strings::ShellString,
 };
 
 /// The error type for environment errors.
@@ -54,14 +57,14 @@ impl Environment {
     ///
     /// If found, returns the exit status of the command. 
     ///
-    pub fn execute<T, S, A>(&self, command: T, args: S) -> Result<ExitStatus>
+    pub fn execute<T, S>(&self, command: T, args: S) -> Result<ExitStatus>
         where T: Into<PathBuf>,
-              S: IntoIterator<Item = A>,
-              A: AsRef<OsStr>
+              S: IntoIterator<Item = ShellString>,
     {
         let absolute_command = self.find_executable(&command.into());
         if let Some(path) = absolute_command {
-            Command::new(path).args(args).status().map_err(|_| Error::Unknown)
+            let interpolated_args = args.into_iter().map(|a| a.to_string(&self));
+            Command::new(path).args(interpolated_args).status().map_err(|_| Error::Unknown)
         } else {
             Err(Error::CommandNotFound)
         }

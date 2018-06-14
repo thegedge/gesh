@@ -7,6 +7,9 @@ mod geshl;
 
 use std::result;
 
+use super::strings::ShellString;
+
+/// A parser for the geshl language.
 pub type GeshlParser = geshl::Parser;
 
 /// An error during parsing
@@ -24,7 +27,7 @@ pub enum ParsedLine {
 
     /// The name of a command. This could be either a builtin, alias, function, or command
     /// that exists on the path
-    Command(String, Vec<String>)
+    Command(ShellString, Vec<ShellString>)
 }
 
 /// A parser for shells

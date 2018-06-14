@@ -21,6 +21,11 @@ use parser::{
     Result,
 };
 
+use strings::{
+    Piece,
+    ShellString,
+};
+
 
 /// A parser for geshl.
 ///
@@ -58,56 +63,77 @@ macro_rules! spaced (
 ///
 named!(
     command(CompleteStr) -> ParsedLine,
-    map!(
-        spaced!(
-            do_parse!(
-                command: argument >>
-                args: many0!(argument) >>
-                (command, args)
-            )
-        ),
-        |(command, args)| {
-            ParsedLine::Command(
-                String::from(command.as_ref()),
-                Vec::from(args),
-            )
-        }
+    spaced!(
+        do_parse!(
+            command: argument
+            >> args: many0!(argument)
+            >> (ParsedLine::Command(command, args))
+        )
     )
 );
 
 /// Parses an "argument" from the command line.
 ///
 named!(
-    argument(CompleteStr) -> String,
-    map!(
-        alt!(
-            take_while1!(is_command_character) |
-            interpolated_string |
-            uninterpolated_string
-        ),
-        |v| String::from(v.as_ref())
+    argument(CompleteStr) -> ShellString,
+    alt!(
+        take_while1!(is_command_character) => { |v: CompleteStr|
+            ShellString::Uninterpolated(String::from(v.as_ref()))
+        }
+        | interpolated_string
+        | uninterpolated_string
     )
 );
 
 /// Parses an interpolated string from the command line.
 ///
 named!(
-    interpolated_string(CompleteStr) -> CompleteStr,
-    delimited!(
-        tag!("\""),
-        take_until!("\""),
-        tag!("\"")
+    interpolated_string(CompleteStr) -> ShellString,
+    map!(
+        delimited!(
+            tag!("\""),
+            many0!(alt!(env_var | fixed_string)),
+            tag!("\"")
+        ),
+        |v| ShellString::from(v)
+    )
+);
+
+/// Parses an environment variable.
+///
+named!(
+    env_var(CompleteStr) -> Piece,
+    map!(
+        do_parse!(
+            tag!("$")
+            >> var: delimited!(tag!("{"), take_until!("}"), tag!("}"))
+            >> (var)
+        ),
+        |v| Piece::Variable(String::from(v.as_ref()))
+    )
+);
+
+/// Parses regular text inside of an interpolated string.
+///
+named!(
+    fixed_string(CompleteStr) -> Piece,
+    map!(
+        take_until_either!("$\""),
+        |v| Piece::Fixed(String::from(v.as_ref()))
     )
 );
 
 /// Parses an uninterpolated string from the command line.
 ///
 named!(
-    uninterpolated_string(CompleteStr) -> CompleteStr,
-    delimited!(
-        tag!("'"),
-        take_until!("'"),
-        tag!("'")
+    uninterpolated_string(CompleteStr) -> ShellString,
+    map!(
+        delimited!(
+            tag!("'"),
+            take_until!("'"),
+            tag!("'")
+        ),
+        |v| ShellString::Uninterpolated(String::from(v.as_ref()))
     )
 );
 
@@ -148,7 +174,7 @@ impl parser::Parser for Parser {
     ///
     fn parse<S: AsRef<str>>(&self, line: &S) -> Result<ParsedLine> {
         let parse_result = parse_line(CompleteStr(line.as_ref()));
-        println!("{:?}", parse_result);
+        //println!("{:?}", parse_result);
 
         match parse_result {
             Ok((_, parsed_line)) => Ok(parsed_line),

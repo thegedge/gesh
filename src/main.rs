@@ -6,11 +6,11 @@ mod environment;
 mod parser;
 mod readline;
 mod shell;
+mod strings;
 
 use parser::GeshlParser;
 use readline::rustyline::RustylineReader;
 use std::process;
-
 
 fn main() {
   let mut my_shell = shell::Shell {
