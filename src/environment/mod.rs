@@ -1,6 +1,7 @@
 //! Encapsulates the environment in which commands within a shell executes.
 //!
 use std::{
+    borrow::Borrow,
     collections::HashMap,
     env,
     fs,
@@ -18,7 +19,7 @@ use super::{
 
 /// The error type for environment errors.
 ///
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CommandError {
     /// Command wasn't found on the path
     CommandNotFound,
@@ -67,8 +68,8 @@ impl Environment {
 
     /// Gets the value of a variable from this environment.
     ///
-    pub fn var(&self, name: &String) -> Option<String> {
-        match self.vars.get(name) {
+    pub fn var<S: Borrow<String>>(&self, name: &S) -> Option<String> {
+        match self.vars.get(name.borrow()) {
             Some(s) => Some(s.clone()),
             None => None,
         }
@@ -120,5 +121,47 @@ impl Environment {
             },
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_uses_vars_from_given_map() {
+        let expected_paths = vec!["/bin", "/usr/bin", "/usr/local/bin"];
+        let joined_paths = env::join_paths(&expected_paths).unwrap().into_string().unwrap();
+
+        let mut vars = HashMap::new();
+        vars.insert("PATH".to_owned(), joined_paths.clone());
+        vars.insert("HOME".to_owned(), "/Users/foo".to_owned());
+            
+        let env = Environment::new(vars);
+        assert_eq!(expected_paths, env.paths.iter().map(|v| v.as_os_str()).collect::<Vec<_>>());
+        assert_eq!(Some(joined_paths), env.var(&"PATH".to_owned()));
+        assert_eq!(Some("/Users/foo".to_owned()), env.var(&"HOME".to_owned()));
+        assert_eq!(None, env.var(&"TMPDIR".to_owned()));
+    }
+
+    #[cfg(target_famlily = "unix")]
+    #[test]
+    fn test_execute_finds_and_executes_relative_command() {
+        let env = Environment::from_existing_env();
+        assert_eq!(Some(0), env.execute("true", vec![]).unwrap().code());
+    }
+
+    #[cfg(target_famlily = "unix")]
+    #[test]
+    fn test_execute_returns_error_when_not_on_path() {
+        let env = Environment::new(HashMap::new());
+        assert_eq!(Err(CommandError::CommandNotFound), env.execute("true", vec![]));
+    }
+
+    #[cfg(target_famlily = "unix")]
+    #[test]
+    fn test_execute_executes_absolute_command() {
+        let env = Environment::new(HashMap::new());
+        assert_eq!(Some(1), env.execute("/usr/bin/false", vec![]).unwrap().code());
     }
 }
