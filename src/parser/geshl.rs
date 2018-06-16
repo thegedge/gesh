@@ -71,12 +71,14 @@ named!(
     )
 );
 
-/// Parses an "argument" from the command line.
+/// Parses a string "piece".
+///
+/// A piece could be a path, an unquoted string, an interpolated string, and so on.
 ///
 named!(
     argument(&str) -> ShellString,
     alt!(
-        take_while1!(is_command_character) => { |v: &str| ShellString::Uninterpolated(v.to_owned()) }
+        take_while1!(is_command_character) => { |v: &str| ShellString::from(v.to_owned()) }
         | interpolated_string
         | uninterpolated_string
     )
@@ -148,7 +150,7 @@ named!(
             ),
             char!('\'')
         ),
-        |v| ShellString::Uninterpolated(v.to_owned())
+        |v| ShellString::from(v.to_owned())
     )
 );
 
@@ -206,11 +208,11 @@ mod tests {
     fn test_command_parses() {
         assert_eq!(
             ("\n", ParsedLine::Command(
-                ShellString::Uninterpolated("/bin/echo".to_owned()),
+                ShellString::from("/bin/echo"),
                 vec![
-                    ShellString::Uninterpolated("My".to_owned()),
-                    ShellString::Uninterpolated("home".to_owned()),
-                    ShellString::Uninterpolated("dir is".to_owned()),
+                    ShellString::from("My"),
+                    ShellString::from("home"),
+                    ShellString::from("dir is"),
                     ShellString::from(vec![
                         Piece::Variable("HOME".to_owned())
                     ])
@@ -223,7 +225,7 @@ mod tests {
     #[test]
     fn test_argument_parses_regular_strings() {
         assert_eq!(
-            ("\n", ShellString::Uninterpolated("echo".to_owned())),
+            ("\n", ShellString::from("echo")),
             argument("echo\n").expect("should parse")
         );
     }
@@ -232,7 +234,7 @@ mod tests {
     fn test_argument_parses_interpolated_strings() {
         assert_eq!(
             ("\n", ShellString::from(vec![
-                Piece::Fixed("echo".to_owned()),
+                Piece::from("echo"),
             ])),
             argument("\"echo\"\n").expect("should parse")
         );
@@ -241,7 +243,7 @@ mod tests {
     #[test]
     fn test_argument_parses_uninterpolated_strings() {
         assert_eq!(
-            ("\n", ShellString::Uninterpolated("echo".to_owned())),
+            ("\n", ShellString::from("echo")),
             argument("'echo'\n").expect("should parse")
         );
     }
@@ -250,7 +252,7 @@ mod tests {
     fn test_interpolated_string_parses_simple_string() {
         assert_eq!(
             ("", ShellString::from(vec![
-                Piece::Fixed("this is a test".to_owned()),
+                Piece::from("this is a test"),
             ])),
             interpolated_string("\"this is a test\"").expect("should parse")
         );
@@ -260,9 +262,9 @@ mod tests {
     fn test_interpolated_string_parses_complex_string() {
         assert_eq!(
             ("", ShellString::from(vec![
-                Piece::Fixed("home dir:\n\t".to_owned()),
+                Piece::from("home dir:\n\t"),
                 Piece::Variable("HOME".to_owned()),
-                Piece::Fixed("\n\ncode dir:\n\t".to_owned()),
+                Piece::from("\n\ncode dir:\n\t"),
                 Piece::Variable("CODE_DIR".to_owned()),
             ])),
             interpolated_string("\"home dir:\\n\\t${HOME}\\n\\ncode dir:\\n\\t${CODE_DIR}\"").expect("should parse")
@@ -273,7 +275,7 @@ mod tests {
     fn test_interpolated_string_parses_string_escapes() {
         assert_eq!(
             ("", ShellString::from(vec![
-                Piece::Fixed("\tthis is \n a \"test\"".to_owned())
+                Piece::from("\tthis is \n a \"test\"")
             ])),
             interpolated_string("\"\\tthis is \\n a \\\"test\\\"\"").expect("should parse")
         );
@@ -283,7 +285,7 @@ mod tests {
     fn test_interpolated_string_parses_string_with_vars() {
         assert_eq!(
             ("", ShellString::from(vec![
-                Piece::Fixed("\tthis is \n a \"test\"".to_owned())
+                Piece::from("\tthis is \n a \"test\"")
             ])),
             interpolated_string("\"\\tthis is \\n a \\\"test\\\"\"").expect("should parse")
         );
@@ -292,7 +294,7 @@ mod tests {
     #[test]
     fn test_uninterpolated_string_parses_simple_string() {
         assert_eq!(
-            ("", ShellString::Uninterpolated("this is a test".to_owned())),
+            ("", ShellString::from("this is a test")),
             uninterpolated_string("'this is a test'").expect("should parse")
         );
     }
@@ -300,7 +302,7 @@ mod tests {
     #[test]
     fn test_uninterpolated_string_parses_string_with_escapes() {
         assert_eq!(
-            ("", ShellString::Uninterpolated("it's \\ a test".to_owned())),
+            ("", ShellString::from("it's \\ a test")),
             uninterpolated_string("'it\\'s \\\\ a test'").expect("should parse")
         );
     }
