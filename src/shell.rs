@@ -47,6 +47,11 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
     ///
     pub fn run(&mut self) -> Result<(), Error> {
         loop {
+            match env::current_dir() {
+                Ok(dir) => self.prompt.set_prompt(dir.to_string_lossy().into_owned().to_string() + "$ "),
+                Err(_) => self.prompt.set_prompt("gesh$ ".to_owned()),
+            };
+
             let parsed_line = match self.prompt.get() {
                 Ok(raw_line) => self.parser.parse(raw_line)?,
                 Err(prompt::Error::Eof()) => break,
