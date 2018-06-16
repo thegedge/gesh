@@ -64,8 +64,8 @@ named!(
     command(&str) -> ParsedLine,
     spaced!(
         do_parse!(
-            command: argument
-            >> args: many0!(argument)
+            command: piece
+            >> args: many0!(piece)
             >> (ParsedLine::Command(command, args))
         )
     )
@@ -76,11 +76,21 @@ named!(
 /// A piece could be a path, an unquoted string, an interpolated string, and so on.
 ///
 named!(
-    argument(&str) -> ShellString,
+    piece(&str) -> ShellString,
     alt!(
-        take_while1!(is_command_character) => { |v: &str| ShellString::from(v.to_owned()) }
+        path
         | interpolated_string
         | uninterpolated_string
+    )
+);
+
+/// Parses a path-like component.
+///
+named!(
+    path(&str) -> ShellString,
+    map!(
+        take_while1!(is_command_character),
+        |v: &str| ShellString::from(v)
     )
 );
 
@@ -129,7 +139,7 @@ named!(
                 | tag!("t") => { |_| "\t" }
             )
         ),
-        |v| Piece::Fixed(v.to_owned())
+        |v| Piece::from(v)
     )
 );
 
@@ -223,28 +233,28 @@ mod tests {
     }
 
     #[test]
-    fn test_argument_parses_regular_strings() {
+    fn test_piece_parses_paths() {
         assert_eq!(
             ("\n", ShellString::from("echo")),
-            argument("echo\n").expect("should parse")
+            piece("echo\n").expect("should parse")
         );
     }
 
     #[test]
-    fn test_argument_parses_interpolated_strings() {
+    fn test_piece_parses_interpolated_strings() {
         assert_eq!(
             ("\n", ShellString::from(vec![
                 Piece::from("echo"),
             ])),
-            argument("\"echo\"\n").expect("should parse")
+            piece("\"echo\"\n").expect("should parse")
         );
     }
 
     #[test]
-    fn test_argument_parses_uninterpolated_strings() {
+    fn test_piece_parses_uninterpolated_strings() {
         assert_eq!(
             ("\n", ShellString::from("echo")),
-            argument("'echo'\n").expect("should parse")
+            piece("'echo'\n").expect("should parse")
         );
     }
 

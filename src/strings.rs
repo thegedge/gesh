@@ -45,8 +45,8 @@ impl ShellString {
     }
 }
 
-impl From<&'static str> for ShellString {
-    fn from(value: &'static str) -> Self {
+impl <'a> From<&'a str> for ShellString {
+    fn from(value: &'a str) -> Self {
         ShellString { pieces: vec![Piece::Fixed(value.to_owned())] }
     }
 }
@@ -74,8 +74,8 @@ impl Piece {
     }
 }
 
-impl From<&'static str> for Piece {
-    fn from(value: &'static str) -> Self {
+impl <'a> From<&'a str> for Piece {
+    fn from(value: &'a str) -> Self {
         Piece::Fixed(value.to_owned())
     }
 }
