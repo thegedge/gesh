@@ -1,25 +1,26 @@
-use readline::{
+use super::{
     Error,
-    Reader
+    Prompt
 };
+
 use rustyline::{
     Editor,
     error::ReadlineError,
 };
 
-pub struct RustylineReader {
+pub struct RustylinePrompt {
     editor: Editor<()>,
 }
 
-impl RustylineReader {
-    pub fn new() -> RustylineReader {
-        RustylineReader {
+impl RustylinePrompt {
+    pub fn new() -> RustylinePrompt {
+        RustylinePrompt {
             editor: Editor::new(),
         }
     }
 }
 
-impl Reader for RustylineReader {
+impl Prompt for RustylinePrompt {
     fn get(&mut self) -> Result<String, Error> {
         let line = self.editor.readline(">> ")?;
         self.editor.add_history_entry(&line);

@@ -10,23 +10,29 @@ use std::result;
 use super::strings::ShellString;
 
 /// A parser for the geshl language.
+///
 pub type GeshlParser = geshl::Parser;
 
 /// An error during parsing
+///
 #[derive(Clone, Debug)]
 pub struct Error;
 
 /// Uses for results form all parser functions
+///
 pub type Result<T> = result::Result<T, Error>;
 
 /// A line that has been parsed
+///
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParsedLine {
     /// Represents an empty parse (a "no op")
+    ///
     Empty,
 
     /// The name of a command. This could be either a builtin, alias, function, or command
     /// that exists on the path
+    ///
     Command(ShellString, Vec<ShellString>)
 }
 

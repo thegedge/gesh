@@ -1,7 +1,7 @@
-//! All things dealing with readline.
+//! All things dealing with the prompt.
 //!
-//! Readline provides traits and implementations to support readline a line of text
-//! for the shell. Important features of an implementation:
+//! This module provides traits and implementations to support rendering the prompt and reading
+//! commands from the user. Important features of an implementation:
 //!
 //! * Command history
 //! * Completion,
@@ -29,11 +29,11 @@ pub enum Error {
     Other(),
 }
 
-/// Result used by most `Reader` methods
+/// Result used by most `Prompt` methods
 type Result<T> = result::Result<T, Error>;
 
-/// Abstraction for readline input
-pub trait Reader {
+/// Abstraction for an input prompt
+pub trait Prompt {
     /// Gets the next command from the input
     ///
     /// # Errors

@@ -9,9 +9,9 @@ use std::{
     env,
 };
 
-use readline::{
+use prompt::{
     self,
-    Reader,
+    Prompt,
 };
 
 use parser::{
@@ -27,8 +27,8 @@ use environment::{
 
 /// A user shell.
 ///
-pub struct Shell<R: Reader, P: Parser> {
-    pub reader: R,
+pub struct Shell<R: Prompt, P: Parser> {
+    pub prompt: R,
     pub parser: P,
 }
 
@@ -39,19 +39,19 @@ pub enum Error {
     CommandError(environment::CommandError),
     VarError(env::VarError),
     ParserError(parser::Error),
-    ReadlineError(readline::Error),
+    PromptError(prompt::Error),
 }
 
-impl<R: Reader, P: Parser> Shell<R, P> {
+impl<R: Prompt, P: Parser> Shell<R, P> {
     /// Runs the shell's main read -> parse -> execute loop.
     ///
     pub fn run(&mut self) -> Result<(), Error> {
         loop {
-            let parsed_line = match self.reader.get() {
+            let parsed_line = match self.prompt.get() {
                 Ok(raw_line) => self.parser.parse(raw_line)?,
-                Err(readline::Error::Eof()) => break,
-                Err(readline::Error::Interrupted()) => continue,
-                Err(err) => return Err(Error::ReadlineError(err)),
+                Err(prompt::Error::Eof()) => break,
+                Err(prompt::Error::Interrupted()) => continue,
+                Err(err) => return Err(Error::PromptError(err)),
             };
 
             match parsed_line {
@@ -90,8 +90,8 @@ impl From<parser::Error> for Error {
     }
 }
 
-impl From<readline::Error> for Error {
-    fn from(err: readline::Error) -> Self {
-        Error::ReadlineError(err)
+impl From<prompt::Error> for Error {
+    fn from(err: prompt::Error) -> Self {
+        Error::PromptError(err)
     }
 }
