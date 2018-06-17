@@ -30,39 +30,12 @@ use strings::{
 ///
 pub struct Parser; 
 
-/// Space-separated parsing, which doesn't included newlines/carriage returns
-///
-fn space<'a, T>(input: T) -> IResult<T, T>
-where
-  T: InputTakeAtPosition,
-  <T as InputTakeAtPosition>::Item: AsChar + Clone,
-  &'a str: FindToken<<T as InputTakeAtPosition>::Item>,
-{
-    input.split_at_position(|item| {
-        let c = item.clone().as_char();
-        !c.is_whitespace() || c == '\n' || c == '\r'
-    })
-}
-
-macro_rules! spaced (
-  ($i:expr, $($args:tt)*) => (
-    {
-      use nom::{Convert, Err};
-
-      let (i1, o) = sep!($i, space, $($args)*)?;
-      match space(i1) {
-        Err(e) => Err(Err::convert(e)),
-        Ok((i2, _)) => Ok((i2, o))
-      }
-    }
-  )
-);
-
 /// Parses a command and its arguments.
 ///
 named!(
     command(&str) -> ParsedLine,
-    spaced!(
+    sep!(
+        space,
         do_parse!(
             command: piece
             >> args: many0!(piece)
@@ -174,6 +147,20 @@ named!(
     )
 );
 
+/// Space-separated parsing, which doesn't included newlines/carriage returns
+///
+fn space<'a, T>(input: T) -> IResult<T, T>
+    where
+      T: InputTakeAtPosition,
+      <T as InputTakeAtPosition>::Item: AsChar + Clone,
+      &'a str: FindToken<<T as InputTakeAtPosition>::Item>,
+{
+    input.split_at_position(|item| {
+        let c = item.clone().as_char();
+        !c.is_whitespace() || c == '\n' || c == '\r'
+    })
+}
+
 /// Returns whether or not `chr` is valid as a character in a command name.
 ///
 fn is_command_character(chr: char) -> bool {
@@ -181,7 +168,8 @@ fn is_command_character(chr: char) -> bool {
         'a'...'z' => true,
         'A'...'Z' => true,
         '0'...'9' => true,
-        '-' | '_' | '/' | '.' => true,
+        '-' | '_' | '.' => true,
+        '/' => true,
         _ => false,
     }
 }
