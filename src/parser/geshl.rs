@@ -77,16 +77,27 @@ named!(
                 take_while1!(is_command_character)
             )
         ),
-        |(absolute, pieces)| {
+        |(absolute, components)| {
+            // TODO Try to simplify this, maybe with an alt! parser
             let mut buf = PathBuf::new();
+            let mut pieces = Vec::new();
+
             if absolute.is_some() {
-                buf.push("/");
+                buf.push(path::MAIN_SEPARATOR.to_string());
+                components.iter().for_each(|piece| buf.push(piece));
+            } else if components.len() > 0 {
+                if components[0] == "~" {
+                    pieces.push(Piece::Variable("HOME".to_owned()));
+                    buf.push(path::MAIN_SEPARATOR.to_string());
+                    components.iter().skip(1).for_each(|piece| buf.push(piece));
+                } else {
+                    components.iter().for_each(|piece| buf.push(piece));
+                }
             }
 
-            pieces.iter().for_each(|piece| buf.push(piece));
-
             // TODO maybe consider an enum for shell strings so we don't have to do this conversion
-            ShellString::from(OsString::from(buf).to_string_lossy().into_owned())
+            pieces.push(Piece::from(OsString::from(buf).to_string_lossy().into_owned()));
+            ShellString::from(pieces)
         }
     )
 );
@@ -192,7 +203,7 @@ fn is_command_character(chr: char) -> bool {
         'a'...'z' => true,
         'A'...'Z' => true,
         '0'...'9' => true,
-        '-' | '_' | '.' => true,
+        '~' | '-' | '_' | '.' => true,
         _ => false,
     }
 }
@@ -225,6 +236,9 @@ impl parser::Parser for Parser {
 mod tests {
     use super::*;
 
+    /*
+     * Tests for `command`
+     */
     #[test]
     fn test_command_parses() {
         assert_eq!(
@@ -243,11 +257,14 @@ mod tests {
         );
     }
 
+    /*
+     * Tests for `piece`
+     */
     #[test]
     fn test_piece_parses_paths() {
         assert_eq!(
             ("\n", ShellString::from("/bin/echo")),
-            path("/bin/echo\n").expect("should parse")
+            piece("/bin/echo\n").expect("should parse")
         );
     }
 
@@ -269,6 +286,39 @@ mod tests {
         );
     }
 
+    /*
+     * Tests for `path`
+     */
+    #[test]
+    fn test_path_parses_absolute_paths() {
+        assert_eq!(
+            ("\n", ShellString::from("/bin/echo")),
+            path("/bin/echo\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_path_parses_relative_paths() {
+        assert_eq!(
+            ("\n", ShellString::from("bin/echo")),
+            path("bin/echo\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_path_parses_tilde_paths() {
+        assert_eq!(
+            ("\n", ShellString::from(vec![
+                Piece::Variable("HOME".to_owned()),
+                Piece::from("/bin/echo")
+            ])),
+            path("~/bin/echo\n").expect("should parse")
+        );
+    }
+
+    /*
+     * Tests for `interpolated_string`
+     */
     #[test]
     fn test_interpolated_string_parses_simple_string() {
         assert_eq!(
@@ -312,6 +362,9 @@ mod tests {
         );
     }
 
+    /*
+     * Tests for `uninterpolated_string`
+     */
     #[test]
     fn test_uninterpolated_string_parses_simple_string() {
         assert_eq!(
