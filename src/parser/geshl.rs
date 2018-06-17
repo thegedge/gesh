@@ -21,6 +21,14 @@ use parser::{
     Result,
 };
 
+use std::{
+    ffi::OsString,
+    path::{
+        self,
+        PathBuf,
+    },
+};
+
 use strings::{
     Piece,
     ShellString,
@@ -62,8 +70,24 @@ named!(
 named!(
     path(&str) -> ShellString,
     map!(
-        take_while1!(is_command_character),
-        |v: &str| ShellString::from(v)
+        pair!(
+            opt!(take_while1!(path::is_separator)),
+            separated_nonempty_list!(
+                take_while1!(path::is_separator),
+                take_while1!(is_command_character)
+            )
+        ),
+        |(absolute, pieces)| {
+            let mut buf = PathBuf::new();
+            if absolute.is_some() {
+                buf.push("/");
+            }
+
+            pieces.iter().for_each(|piece| buf.push(piece));
+
+            // TODO maybe consider an enum for shell strings so we don't have to do this conversion
+            ShellString::from(OsString::from(buf).to_string_lossy().into_owned())
+        }
     )
 );
 
@@ -133,7 +157,7 @@ named!(
             ),
             char!('\'')
         ),
-        |v| ShellString::from(v.to_owned())
+        |v| ShellString::from(v)
     )
 );
 
@@ -147,7 +171,7 @@ named!(
     )
 );
 
-/// Space-separated parsing, which doesn't included newlines/carriage returns
+/// Split input at space characters, not including newlines / carriage returns
 ///
 fn space<'a, T>(input: T) -> IResult<T, T>
     where
@@ -169,7 +193,6 @@ fn is_command_character(chr: char) -> bool {
         'A'...'Z' => true,
         '0'...'9' => true,
         '-' | '_' | '.' => true,
-        '/' => true,
         _ => false,
     }
 }
@@ -223,8 +246,8 @@ mod tests {
     #[test]
     fn test_piece_parses_paths() {
         assert_eq!(
-            ("\n", ShellString::from("echo")),
-            piece("echo\n").expect("should parse")
+            ("\n", ShellString::from("/bin/echo")),
+            path("/bin/echo\n").expect("should parse")
         );
     }
 
