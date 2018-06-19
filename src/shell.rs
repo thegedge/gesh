@@ -46,7 +46,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
     /// Runs the shell's main read -> parse -> execute loop.
     ///
     pub fn run(&mut self) -> Result<(), Error> {
-        let env = Environment::from_existing_env();
+        let mut env = Environment::from_existing_env();
 
         loop {
             self.prompt.set_prompt(env.working_directory().to_string_lossy().into_owned().to_string() + "$ ");
@@ -62,7 +62,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                 ParsedLine::Command(cmd, args) => {
                     match cmd.to_string(&env) {
                         Some(interpolated_cmd) => {
-                            let result = env.execute(interpolated_cmd, args);
+                            let result = env.execute(&interpolated_cmd, args);
                             println!("{:?}", result);
                         },
                         None => println!("No command given!")

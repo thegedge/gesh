@@ -5,7 +5,10 @@ use std::{
     collections::HashMap,
     env,
     fs,
-    os::unix::fs::PermissionsExt,
+    os::unix::{
+        fs::PermissionsExt,
+        process::ExitStatusExt,
+    },
     path::PathBuf,
     process::{
         Command,
@@ -87,24 +90,44 @@ impl Environment {
 
     /// Executes `command` within this environment.
     ///
-    /// If found, returns the exit status of the command. 
+    /// If found, returns the exit status of the command.
     ///
-    pub fn execute<T, S>(&self, command: T, args: S) -> Result<ExitStatus, CommandError>
-        where T: Into<PathBuf>,
-              S: IntoIterator<Item = ShellString>,
+    pub fn execute<S>(&mut self, command: &String, args: S) -> Result<ExitStatus, CommandError>
+        where S: IntoIterator<Item = ShellString>,
     {
-        let absolute_command = self.find_executable(&command.into());
-        if let Some(path) = absolute_command {
-            let mapped_args = args.into_iter().map(|a| a.to_string(&self));
-            let interpolated_args = mapped_args.collect::<Option<Vec<_>>>().unwrap_or(vec![]);
-            Command::new(path)
-                .args(interpolated_args)
-                .envs(self.vars.clone().iter())
-                .current_dir(&self.working_directory)
-                .status()
-                .map_err(|_| CommandError::Unknown)
-        } else {
-            Err(CommandError::CommandNotFound)
+        // TODO refactor the builtins out of here into somewhere nicer
+        match command.as_ref() {
+            "cd" => {
+                let new_dir = match args.into_iter().take(1).next() {
+                    Some(dir) => 
+                        dir.to_string(&self)
+                           .and_then(|v| PathBuf::from(v).canonicalize().ok()),
+                    None => env::home_dir(),
+                };
+
+                match new_dir {
+                    Some(dir) => {
+                        self.working_directory = dir;
+                        Ok(ExitStatus::from_raw(0))
+                    },
+                    None => Ok(ExitStatus::from_raw(1))
+                }
+            },
+            _ => {
+                let mapped_args = args.into_iter().map(|a| a.to_string(&self));
+                let absolute_command = self.find_executable(&PathBuf::from(command));
+                if let Some(path) = absolute_command {
+                    let interpolated_args = mapped_args.collect::<Option<Vec<_>>>().unwrap_or(vec![]);
+                    Command::new(path)
+                        .args(interpolated_args)
+                        .envs(self.vars.clone().iter())
+                        .current_dir(&self.working_directory)
+                        .status()
+                        .map_err(|_| CommandError::Unknown)
+                } else {
+                    Err(CommandError::CommandNotFound)
+                }
+            }
         }
     }
 
