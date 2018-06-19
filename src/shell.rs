@@ -46,11 +46,10 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
     /// Runs the shell's main read -> parse -> execute loop.
     ///
     pub fn run(&mut self) -> Result<(), Error> {
+        let env = Environment::from_existing_env();
+
         loop {
-            match env::current_dir() {
-                Ok(dir) => self.prompt.set_prompt(dir.to_string_lossy().into_owned().to_string() + "$ "),
-                Err(_) => self.prompt.set_prompt("gesh$ ".to_owned()),
-            };
+            self.prompt.set_prompt(env.working_directory().to_string_lossy().into_owned().to_string() + "$ ");
 
             let parsed_line = match self.prompt.get() {
                 Ok(raw_line) => self.parser.parse(raw_line)?,
@@ -61,7 +60,6 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
 
             match parsed_line {
                 ParsedLine::Command(cmd, args) => {
-                    let env = Environment::from_existing_env();
                     match cmd.to_string(&env) {
                         Some(interpolated_cmd) => {
                             let result = env.execute(interpolated_cmd, args);

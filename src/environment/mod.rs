@@ -33,6 +33,7 @@ pub enum CommandError {
 pub struct Environment {
     paths: Vec<PathBuf>,
     vars: HashMap<String, String>,
+    working_directory: PathBuf,
 }
 
 impl Environment {
@@ -49,6 +50,9 @@ impl Environment {
         Environment {
             paths: paths,
             vars: vars,
+
+            // TODO something better than '/'?
+            working_directory: env::current_dir().unwrap_or(PathBuf::from("/")),
         }
     }
 
@@ -64,6 +68,12 @@ impl Environment {
                 result
             }
         ))
+    }
+
+    /// Returns the current working directory.
+    ///
+    pub fn working_directory(&self) -> &PathBuf {
+        &self.working_directory
     }
 
     /// Gets the value of a variable from this environment.
@@ -90,6 +100,7 @@ impl Environment {
             Command::new(path)
                 .args(interpolated_args)
                 .envs(self.vars.clone().iter())
+                .current_dir(&self.working_directory)
                 .status()
                 .map_err(|_| CommandError::Unknown)
         } else {
@@ -103,11 +114,17 @@ impl Environment {
         if command.is_absolute() {
             Some(command.clone())
         } else {
-            self.paths.iter().find(
-                |path| self.is_executable(&path.join(command))
-            ).map(
-                |path| path.join(command)
-            )
+            match self.paths.iter().find(|path| self.is_executable(&path.join(command))) {
+                Some(path) => Some(path.join(command)),
+                None => {
+                     let command_in_working_directory = self.working_directory.join(command);
+                     if self.is_executable(&command_in_working_directory) {
+                         Some(command_in_working_directory)
+                     } else {
+                         None
+                     }
+                },
+            }
         }
     }
 
@@ -136,7 +153,7 @@ mod tests {
         let mut vars = HashMap::new();
         vars.insert("PATH".to_owned(), joined_paths.clone());
         vars.insert("HOME".to_owned(), "/Users/foo".to_owned());
-            
+
         let env = Environment::new(vars);
         assert_eq!(expected_paths, env.paths.iter().map(|v| v.as_os_str()).collect::<Vec<_>>());
         assert_eq!(Some(joined_paths), env.var(&"PATH".to_owned()));
