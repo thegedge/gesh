@@ -38,7 +38,19 @@ use strings::{
 ///
 pub struct Parser; 
 
+/// Parses an arbitrary line.
+///
+named!(
+    parse_line(&str) -> ParsedLine,
+    alt!(
+        command
+        | char!('\n') => { |_| ParsedLine::Empty }
+    )
+);
+
 /// Parses a command and its arguments.
+///
+/// A command is a `piece` (the command) followed by zero or more pieces (the arguments).
 ///
 named!(
     command(&str) -> ParsedLine,
@@ -67,42 +79,44 @@ named!(
 
 /// Parses a path-like component.
 ///
+/// ## Examples
+///
+/// - `/`
+/// - `/absolute/dir/to/command`
+/// - `relative/dir/to/command`
+/// - `./current/path`
+/// - `../parent/`
+/// - `~/home/directory`
+///
 named!(
     path(&str) -> ShellString,
     map!(
-        pair!(
-            opt!(take_while1!(path::is_separator)),
-            separated_nonempty_list!(
-                take_while1!(path::is_separator),
-                take_while1!(is_command_character)
-            )
-        ),
-        |(absolute, components)| {
-            // TODO Try to simplify this, maybe with an alt! parser
-            let mut buf = PathBuf::new();
-            let mut pieces = Vec::new();
+        take_while1!(is_path_character),
+        |path| {
+            if path.chars().next() == Some('~') {
+                // TODO ~foo should reference the home dir of "foo"
+                let full_buf = PathBuf::from(path);
+                let mut components = full_buf.components();
+                components.next();
+                let buf = components.as_path().to_path_buf();
 
-            if absolute.is_some() {
-                buf.push(path::MAIN_SEPARATOR.to_string());
-                components.iter().for_each(|piece| buf.push(piece));
-            } else if components.len() > 0 {
-                if components[0] == "~" {
-                    pieces.push(Piece::Variable("HOME".to_owned()));
-                    buf.push(path::MAIN_SEPARATOR.to_string());
-                    components.iter().skip(1).for_each(|piece| buf.push(piece));
-                } else {
-                    components.iter().for_each(|piece| buf.push(piece));
-                }
+                ShellString::from(vec![
+                    Piece::Variable("HOME".to_owned()),
+                    Piece::from(format!("/{}", OsString::from(buf).to_string_lossy().into_owned())),
+                ])
+            } else {
+                ShellString::from(path)
             }
-
-            // TODO maybe consider an enum for shell strings so we don't have to do this conversion
-            pieces.push(Piece::from(OsString::from(buf).to_string_lossy().into_owned()));
-            ShellString::from(pieces)
         }
     )
 );
 
 /// Parses an interpolated string from the command line.
+///
+/// ## Examples
+///
+/// - `"just some text"`
+/// - `"some text with an ${ENVVAR} interpolated"`
 ///
 named!(
     interpolated_string(&str) -> ShellString,
@@ -118,6 +132,11 @@ named!(
 
 /// Parses an environment variable.
 ///
+/// ## Examples
+///
+/// - `${HOME}`
+/// - `${SOME_DIR}`
+///
 named!(
     env_var(&str) -> Piece,
     map!(
@@ -131,6 +150,21 @@ named!(
 );
 
 /// Parses regular text inside of an interpolated string.
+///
+/// Some characters can be escaped with a backslash.
+/// - `\n` becomes a newline
+/// - `\r` becomes a carriage return
+/// - `\t` becomes a horizontal tab
+/// - `\\` becomes a backslash
+/// - `\"` becomes a double quote
+/// - `\'` becomes a single quote
+///
+/// ## Examples
+///
+/// - `abc`
+/// - `abc\n123`
+/// - `\ttabbed text`
+/// - `C:\\Windows\\System\\folder`
 ///
 named!(
     fixed_string(&str) -> Piece,
@@ -153,6 +187,16 @@ named!(
 
 /// Parses an uninterpolated string from the command line.
 ///
+/// Some characters can be escaped with a backslash:
+/// - `\\` becomes a backslash
+/// - `\'` becomes a single quote
+///
+/// ## Examples
+///
+/// - `'this is just text'`
+/// - `'Isn\'t this great?'`
+/// - `'This isn't a newline, just a backslash and an n: \n'`
+///
 named!(
     uninterpolated_string(&str) -> ShellString,
     map!(
@@ -172,23 +216,12 @@ named!(
     )
 );
 
-/// Parses an arbitrary line.
-///
-named!(
-    parse_line(&str) -> ParsedLine,
-    alt!(
-        command
-        | char!('\n') => { |_| ParsedLine::Empty }
-    )
-);
-
 /// Split input at space characters, not including newlines / carriage returns
 ///
 fn space<'a, T>(input: T) -> IResult<T, T>
-    where
-      T: InputTakeAtPosition,
-      <T as InputTakeAtPosition>::Item: AsChar + Clone,
-      &'a str: FindToken<<T as InputTakeAtPosition>::Item>,
+    where T: InputTakeAtPosition,
+          <T as InputTakeAtPosition>::Item: AsChar + Clone,
+          &'a str: FindToken<<T as InputTakeAtPosition>::Item>,
 {
     input.split_at_position(|item| {
         let c = item.clone().as_char();
@@ -198,7 +231,11 @@ fn space<'a, T>(input: T) -> IResult<T, T>
 
 /// Returns whether or not `chr` is valid as a character in a command name.
 ///
-fn is_command_character(chr: char) -> bool {
+fn is_path_character(chr: char) -> bool {
+    if path::is_separator(chr) {
+        return true
+    }
+
     match chr {
         'a'...'z' => true,
         'A'...'Z' => true,
@@ -313,6 +350,22 @@ mod tests {
                 Piece::from("/bin/echo")
             ])),
             path("~/bin/echo\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_path_parses_separator_at_end() {
+        assert_eq!(
+            ("\n", ShellString::from("/bin/echo/")),
+            path("/bin/echo/\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_path_parses_root_dir() {
+        assert_eq!(
+            ("\n", ShellString::from("/")),
+            path("/\n").expect("should parse")
         );
     }
 
