@@ -28,9 +28,13 @@ pub enum CommandError {
 /// Exit status for executing a command.
 ///
 pub enum ExitStatus {
+    /// Instructs the caller that the command requested that the shell exit.
+    ///
+    ExitWith(u32),
+
     /// Successfully ran command, with the given status code.
     ///
-    Success(i32),
+    Success(u32),
 }
 
 /// Supports executing commands within the context of a specific environment.
@@ -113,6 +117,18 @@ impl Environment {
                     None => Ok(ExitStatus::Success(0))
                 }
             },
+            "exit" => {
+                let status = match args.get(0) {
+                    Some(status) => {
+                        status
+                            .to_string(&self)
+                            .map(|v| v.parse().unwrap_or(255))
+                            .unwrap_or(255)
+                    },
+                    None => 0,
+                };
+                Ok(ExitStatus::ExitWith(status))
+            },
             _ => {
                 let absolute_command = self.find_executable(&PathBuf::from(command));
                 if let Some(path) = absolute_command {
@@ -123,7 +139,7 @@ impl Environment {
                         .envs(self.vars.clone().iter())
                         .current_dir(&self.working_directory)
                         .status()
-                        .map(|status| ExitStatus::Success(status.code().unwrap_or(1)))
+                        .map(|status| ExitStatus::Success(status.code().unwrap_or(1) as u32))
                         .map_err(|_| CommandError::Unknown)
                 } else {
                     Err(CommandError::CommandNotFound)

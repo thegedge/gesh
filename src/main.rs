@@ -18,10 +18,11 @@ fn main() {
   };
 
   match my_shell.run() {
-    Ok(ExitStatus::Success(status)) => process::exit(status),
+    Ok(ExitStatus::Success(status)) => process::exit(status as i32),
+    Ok(ExitStatus::ExitWith(status)) => process::exit(status as i32),
     Err(error) => {
       println!("error: {:?}", error);
-      process::exit(1);
+      process::exit(255);
     }
   }
 }

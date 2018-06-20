@@ -63,7 +63,10 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                 ParsedLine::Command(cmd, args) => {
                     match cmd.to_string(&env) {
                         Some(interpolated_cmd) => {
-                            let _result = env.execute(&interpolated_cmd, args);
+                            let result = env.execute(&interpolated_cmd, args);
+                            if let Ok(ExitStatus::ExitWith(code)) = result {
+                                return Ok(ExitStatus::ExitWith(code));
+                            };
                         },
                         None => println!("No command given!")
                     }
