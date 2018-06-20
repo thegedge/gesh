@@ -136,44 +136,32 @@ impl Environment {
     fn find_executable(&self, command: &PathBuf) -> Option<PathBuf> {
         // TODO make this nicer
         if command.is_absolute() {
-            if self.is_executable(&command) {
-                Some(command.clone())
-            } else {
-                None
-            }
+            self.executable(command.clone())
         } else if command.parent() != Some(&PathBuf::from("")) {
-            // TODO maybe I need my own path representation to better separate absolute / relative
-            // / PATH-based paths (can be done at the parser level)
             let command_in_working_directory = self.working_directory.join(command);
-            if self.is_executable(&command_in_working_directory) {
-                Some(command_in_working_directory)
-            } else {
-                None
-            }
+            self.executable(command_in_working_directory)
         } else {
-            match self.paths.iter().find(|path| self.is_executable(&path.join(command))) {
-                Some(path) => Some(path.join(command)),
+            let mut executables_in_path = self.paths.iter().map(|path| self.executable(path.join(command)));
+            match executables_in_path.find(|path| path.is_some()) {
+                Some(executable) => executable,
                 None => {
-                     let command_in_working_directory = self.working_directory.join(command);
-                     if self.is_executable(&command_in_working_directory) {
-                         Some(command_in_working_directory)
-                     } else {
-                         None
-                     }
-                },
+                    let command_in_working_directory = self.working_directory.join(command);
+                    self.executable(command_in_working_directory)
+                }
             }
         }
     }
 
     /// Returns whether or not the file is executable.
     ///
-    fn is_executable(&self, command: &PathBuf) -> bool {
+    fn executable(&self, command: PathBuf) -> Option<PathBuf> {
         // TODO make this work for more than Unix
-        match fs::metadata(command) {
-            Ok(metadata) => {
-                (metadata.permissions().mode() & 0o111) != 0
+        // TODO perhaps need to check if current user can execute the command
+        match fs::metadata(&command) {
+            Ok(ref metadata) if (metadata.permissions().mode() & 0o111) != 0 => {
+                Some(command)
             },
-            _ => false,
+            _ => None,
         }
     }
 }
