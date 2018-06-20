@@ -94,13 +94,11 @@ impl Environment {
     ///
     /// If found, returns the exit status of the command.
     ///
-    pub fn execute<S>(&mut self, command: &String, args: S) -> Result<ExitStatus, CommandError>
-        where S: IntoIterator<Item = ShellString>,
-    {
+    pub fn execute(&mut self, command: &String, args: Vec<ShellString>) -> Result<ExitStatus, CommandError> {
         // TODO refactor the builtins out of here into somewhere nicer
         match command.as_ref() {
             "cd" => {
-                let new_dir = match args.into_iter().take(1).next() {
+                let new_dir = match args.get(0) {
                     Some(dir) => 
                         dir.to_string(&self)
                            .and_then(|v| PathBuf::from(v).canonicalize().ok()),
