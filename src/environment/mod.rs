@@ -114,9 +114,9 @@ impl Environment {
                 }
             },
             _ => {
-                let mapped_args = args.into_iter().map(|a| a.to_string(&self));
                 let absolute_command = self.find_executable(&PathBuf::from(command));
                 if let Some(path) = absolute_command {
+                    let mapped_args = args.into_iter().map(|a| a.to_string(&self));
                     let interpolated_args = mapped_args.collect::<Option<Vec<_>>>().unwrap_or(vec![]);
                     Command::new(path)
                         .args(interpolated_args)
@@ -134,8 +134,22 @@ impl Environment {
     /// Finds an executable within this environment.
     ///
     fn find_executable(&self, command: &PathBuf) -> Option<PathBuf> {
+        // TODO make this nicer
         if command.is_absolute() {
-            Some(command.clone())
+            if self.is_executable(&command) {
+                Some(command.clone())
+            } else {
+                None
+            }
+        } else if command.parent() != Some(&PathBuf::from("")) {
+            // TODO maybe I need my own path representation to better separate absolute / relative
+            // / PATH-based paths (can be done at the parser level)
+            let command_in_working_directory = self.working_directory.join(command);
+            if self.is_executable(&command_in_working_directory) {
+                Some(command_in_working_directory)
+            } else {
+                None
+            }
         } else {
             match self.paths.iter().find(|path| self.is_executable(&path.join(command))) {
                 Some(path) => Some(path.join(command)),
