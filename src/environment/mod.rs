@@ -5,15 +5,9 @@ use std::{
     collections::HashMap,
     env,
     fs,
-    os::unix::{
-        fs::PermissionsExt,
-        process::ExitStatusExt,
-    },
+    os::unix::fs::PermissionsExt,
     path::PathBuf,
-    process::{
-        Command,
-        ExitStatus,
-    },
+    process::Command,
 };
 
 use super::{
@@ -29,6 +23,14 @@ pub enum CommandError {
 
     /// Generic error for unknown/uncateogrized errors
     Unknown,
+}
+
+/// Exit status for executing a command.
+///
+pub enum ExitStatus {
+    /// Successfully ran command, with the given status code.
+    ///
+    Success(i32),
 }
 
 /// Supports executing commands within the context of a specific environment.
@@ -108,9 +110,9 @@ impl Environment {
                 match new_dir {
                     Some(dir) => {
                         self.working_directory = dir;
-                        Ok(ExitStatus::from_raw(0))
+                        Ok(ExitStatus::Success(0))
                     },
-                    None => Ok(ExitStatus::from_raw(1))
+                    None => Ok(ExitStatus::Success(0))
                 }
             },
             _ => {
@@ -123,6 +125,7 @@ impl Environment {
                         .envs(self.vars.clone().iter())
                         .current_dir(&self.working_directory)
                         .status()
+                        .map(|status| ExitStatus::Success(status.code().unwrap_or(1)))
                         .map_err(|_| CommandError::Unknown)
                 } else {
                     Err(CommandError::CommandNotFound)

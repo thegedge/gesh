@@ -9,6 +9,7 @@ mod shell;
 mod strings;
 
 use std::process;
+use environment::ExitStatus;
 
 fn main() {
   let mut my_shell = shell::Shell {
@@ -16,8 +17,11 @@ fn main() {
     parser: parser::GeshlParser::new(),
   };
 
-  if let Err(error) = my_shell.run() {
-    println!("error: {:?}", error);
-    process::exit(1);
+  match my_shell.run() {
+    Ok(ExitStatus::Success(status)) => process::exit(status),
+    Err(error) => {
+      println!("error: {:?}", error);
+      process::exit(1);
+    }
   }
 }

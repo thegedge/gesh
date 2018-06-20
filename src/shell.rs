@@ -23,6 +23,7 @@ use parser::{
 use environment::{
     self,
     Environment,
+    ExitStatus,
 };
 
 /// A user shell.
@@ -45,7 +46,7 @@ pub enum Error {
 impl<R: Prompt, P: Parser> Shell<R, P> {
     /// Runs the shell's main read -> parse -> execute loop.
     ///
-    pub fn run(&mut self) -> Result<(), Error> {
+    pub fn run(&mut self) -> Result<ExitStatus, Error> {
         let mut env = Environment::from_existing_env();
 
         loop {
@@ -70,7 +71,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                 ParsedLine::Empty => continue,
             }
         }
-        Ok(())
+        Ok(ExitStatus::Success(0))
     }
 }
 
