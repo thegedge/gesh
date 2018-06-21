@@ -5,7 +5,10 @@ use std::{
     collections::HashMap,
     env,
     fs,
-    os::unix::fs::PermissionsExt,
+    os::unix::{
+        fs::PermissionsExt,
+        process::CommandExt,
+    },
     path::PathBuf,
     process::Command,
 };
@@ -117,6 +120,34 @@ impl Environment {
                     None => Ok(ExitStatus::Success(0))
                 }
             },
+
+            "exec" => {
+                if args.len() == 0 {
+                    // TODO e.g., exec 2>&1 should make all stderr go to stdout in the shell
+                    Ok(ExitStatus::Success(0))
+                } else {
+                    match args[0].to_string(&self) {
+                        Some(exec_command) => {
+                            let absolute_command = self.find_executable(&PathBuf::from(exec_command));
+                            if let Some(path) = absolute_command {
+                                let mapped_args = args.into_iter().skip(1).map(|a| a.to_string(&self));
+                                let interpolated_args = mapped_args.collect::<Option<Vec<_>>>().unwrap_or(vec![]);
+                                Command::new(path)
+                                    .args(interpolated_args)
+                                    .envs(self.vars.clone().iter())
+                                    .current_dir(&self.working_directory)
+                                    .exec();
+
+                                Err(CommandError::Unknown)
+                            } else {
+                                Err(CommandError::CommandNotFound)
+                            }
+                        },
+                        None => Err(CommandError::Unknown),
+                    }
+                }
+            },
+
             "exit" => {
                 let status = match args.get(0) {
                     Some(status) => {
@@ -129,6 +160,7 @@ impl Environment {
                 };
                 Ok(ExitStatus::ExitWith(status))
             },
+
             _ => {
                 let absolute_command = self.find_executable(&PathBuf::from(command));
                 if let Some(path) = absolute_command {
