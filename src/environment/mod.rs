@@ -124,16 +124,19 @@ impl Environment {
                     match args[0].to_string(&self) {
                         Some(exec_command) => {
                             let absolute_command = self.find_executable(&PathBuf::from(exec_command));
-                            let mapped_args = args.into_iter().skip(1).map(|a| a.to_string(&self));
-                            let interpolated_args = mapped_args.collect::<Option<Vec<_>>>().unwrap_or(vec![]);
                             if let Some(path) = absolute_command {
-                                process::Command::new(path)
-                                    .args(interpolated_args)
-                                    .envs(self.vars.clone())
-                                    .current_dir(&self.working_directory)
-                                    .exec();
-
-                                Err(CommandError::Unknown)
+                                match ShellString::to_string_vec(args.into_iter().skip(1), &self) {
+                                    Some(interpolated_args) => {
+                                        process::Command::new(path)
+                                            .args(interpolated_args)
+                                            .envs(self.vars.clone())
+                                            .current_dir(&self.working_directory)
+                                            .exec();
+                                    
+                                        Err(CommandError::Unknown)
+                                    },
+                                    None => Err(CommandError::Unknown),
+                                }
                             } else {
                                 Err(CommandError::UnknownCommand)
                             }
@@ -159,12 +162,15 @@ impl Environment {
             _ => {
                 let absolute_command = self.find_executable(&PathBuf::from(command));
                 if let Some(path) = absolute_command {
-                    let mapped_args = args.into_iter().map(|a| a.to_string(&self));
-                    let interpolated_args = mapped_args.collect::<Option<Vec<_>>>().unwrap_or(vec![]);
-                    Command::new(path)
-                        .args(interpolated_args)
-                        .env(&self)
-                        .execute()
+                    match ShellString::to_string_vec(args.into_iter(), &self) {
+                        Some(interpolated_args) => {
+                            Command::new(path)
+                                .args(interpolated_args)
+                                .env(&self)
+                                .execute()
+                        },
+                        None => Err(CommandError::Unknown),
+                    }
                 } else {
                     Err(CommandError::UnknownCommand)
                 }

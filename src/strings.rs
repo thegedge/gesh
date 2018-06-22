@@ -26,6 +26,17 @@ pub enum Piece {
 }
 
 impl ShellString {
+    /// Converts a list of `ShellString`s to a list of `String`s with the given environment.
+    ///
+    /// Any shell string that cannot be
+    ///
+    pub fn to_string_vec<V>(values: V, env: &Environment) -> Option<Vec<String>>
+        where V: Iterator<Item = ShellString>
+    {
+        values.map(|a| a.to_string(env))
+              .collect::<Option<Vec<_>>>()
+    }
+
     /// Converts this shell string into a regular string.
     ///
     /// Path and variable interpolations are done via the given `Environment`.
@@ -83,5 +94,78 @@ impl <'a> From<&'a str> for Piece {
 impl From<String> for Piece {
     fn from(value: String) -> Self {
         Piece::Fixed(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use super::*;
+
+    #[test]
+    fn test_to_string_returns_string_when_var_exists() {
+        let shell_string = ShellString::from(vec![
+            Piece::from("this is a "),
+            Piece::Variable("WHAT".to_owned()),
+        ]);
+
+        let mut vars = HashMap::new();
+        vars.insert("WHAT".to_owned(), "test".to_owned());
+
+        let env = Environment::new(vars);
+
+        assert_eq!(Some("this is a test".to_owned()), shell_string.to_string(&env));
+    }
+
+    #[test]
+    fn test_to_string_returns_none_when_var_doesnt_exist() {
+        let shell_string = ShellString::from(vec![
+            Piece::from("this is a "),
+            Piece::Variable("WHAT".to_owned()),
+        ]);
+
+        let env = Environment::new(HashMap::new());
+
+        assert_eq!(None, shell_string.to_string(&env));
+    }
+
+    #[test]
+    fn test_to_string_vec_returns_vec_when_all_vars_exist() {
+        let shell_strings = vec![
+            ShellString::from(vec![
+                Piece::from("this is a "),
+                Piece::Variable("WHAT".to_owned()),
+            ]),
+            ShellString::from("another"),
+        ];
+
+        let mut vars = HashMap::new();
+        vars.insert("WHAT".to_owned(), "test".to_owned());
+
+        let env = Environment::new(vars);
+
+        assert_eq!(
+            Some(vec!["this is a test".to_owned(), "another".to_owned()]),
+            ShellString::to_string_vec(shell_strings.into_iter(), &env)
+        );
+    }
+
+    #[test]
+    fn test_to_string_vec_returns_none_if_a_var_doesnt_exist() {
+        let shell_strings = vec![
+            ShellString::from(vec![Piece::Variable("EXISTS".to_owned())]),
+            ShellString::from(vec![
+                Piece::from("this is a "),
+                Piece::Variable("WHAT".to_owned()),
+            ]),
+            ShellString::from("another"),
+        ];
+
+        let mut vars = HashMap::new();
+        vars.insert("EXISTS".to_owned(), "i'm here".to_owned());
+
+        let env = Environment::new(vars);
+
+        assert_eq!(None, ShellString::to_string_vec(shell_strings.into_iter(), &env));
     }
 }
