@@ -21,7 +21,7 @@ pub enum Piece {
     /// A fixed string.
     Fixed(String),
 
-    /// An environment variable.
+    /// A shell variable.
     Variable(String),
 }
 

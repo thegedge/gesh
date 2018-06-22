@@ -1,5 +1,7 @@
 //! Encapsulates the environment in which commands within a shell executes.
 //!
+mod command;
+
 use std::{
     borrow::Borrow,
     collections::HashMap,
@@ -10,35 +12,22 @@ use std::{
         process::CommandExt,
     },
     path::PathBuf,
-    process::Command,
+    process,
+};
+
+use self::command::{
+    Command
 };
 
 use super::{
     strings::ShellString,
 };
 
-/// The error type for environment errors.
-///
-#[derive(Debug, PartialEq)]
-pub enum CommandError {
-    /// Command wasn't found on the path
-    CommandNotFound,
-
-    /// Generic error for unknown/uncateogrized errors
-    Unknown,
-}
-
-/// Exit status for executing a command.
-///
-pub enum ExitStatus {
-    /// Instructs the caller that the command requested that the shell exit.
-    ///
-    ExitWith(u32),
-
-    /// Successfully ran command, with the given status code.
-    ///
-    Success(u32),
-}
+pub use self::command::{
+    Error as CommandError,
+    ExecutableUnit,
+    ExitStatus,
+};
 
 /// Supports executing commands within the context of a specific environment.
 ///
@@ -97,6 +86,12 @@ impl Environment {
         }
     }
 
+    /// Gets the value of a variable from this environment.
+    ///
+    pub fn vars(&self) -> HashMap<String, String> {
+        self.vars.clone()
+    }
+
     /// Executes `command` within this environment.
     ///
     /// If found, returns the exit status of the command.
@@ -129,18 +124,18 @@ impl Environment {
                     match args[0].to_string(&self) {
                         Some(exec_command) => {
                             let absolute_command = self.find_executable(&PathBuf::from(exec_command));
+                            let mapped_args = args.into_iter().skip(1).map(|a| a.to_string(&self));
+                            let interpolated_args = mapped_args.collect::<Option<Vec<_>>>().unwrap_or(vec![]);
                             if let Some(path) = absolute_command {
-                                let mapped_args = args.into_iter().skip(1).map(|a| a.to_string(&self));
-                                let interpolated_args = mapped_args.collect::<Option<Vec<_>>>().unwrap_or(vec![]);
-                                Command::new(path)
+                                process::Command::new(path)
                                     .args(interpolated_args)
-                                    .envs(self.vars.clone().iter())
+                                    .envs(self.vars.clone())
                                     .current_dir(&self.working_directory)
                                     .exec();
 
                                 Err(CommandError::Unknown)
                             } else {
-                                Err(CommandError::CommandNotFound)
+                                Err(CommandError::UnknownCommand)
                             }
                         },
                         None => Err(CommandError::Unknown),
@@ -168,13 +163,10 @@ impl Environment {
                     let interpolated_args = mapped_args.collect::<Option<Vec<_>>>().unwrap_or(vec![]);
                     Command::new(path)
                         .args(interpolated_args)
-                        .envs(self.vars.clone().iter())
-                        .current_dir(&self.working_directory)
-                        .status()
-                        .map(|status| ExitStatus::Success(status.code().unwrap_or(1) as u32))
-                        .map_err(|_| CommandError::Unknown)
+                        .env(&self)
+                        .execute()
                 } else {
-                    Err(CommandError::CommandNotFound)
+                    Err(CommandError::UnknownCommand)
                 }
             }
         }
