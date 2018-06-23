@@ -44,7 +44,11 @@ macro_rules! builtin {
 }
 
 mod cd;
+mod exec;
+mod exit;
 
 pub use self::{
     cd::Cd,
+    exec::Exec,
+    exit::Exit,
 };

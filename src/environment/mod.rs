@@ -9,10 +9,8 @@ use std::{
     fs,
     os::unix::{
         fs::PermissionsExt,
-        process::CommandExt,
     },
     path::PathBuf,
-    process,
 };
 
 use self::command::*;
@@ -112,46 +110,19 @@ impl Environment {
             },
 
             "exec" => {
-                if args.len() == 0 {
-                    // TODO e.g., exec 2>&1 should make all stderr go to stdout in the shell
-                    Ok(ExitStatus::Success(0))
-                } else {
-                    match args[0].to_string(&self) {
-                        Some(exec_command) => {
-                            let absolute_command = self.find_executable(&PathBuf::from(exec_command));
-                            if let Some(path) = absolute_command {
-                                match ShellString::to_string_vec(args.into_iter().skip(1), &self) {
-                                    Some(interpolated_args) => {
-                                        process::Command::new(path)
-                                            .args(interpolated_args)
-                                            .envs(self.vars.clone())
-                                            .current_dir(&self.working_directory)
-                                            .exec();
-
-                                        Err(CommandError::Unknown)
-                                    },
-                                    None => Err(CommandError::Unknown),
-                                }
-                            } else {
-                                Err(CommandError::UnknownCommand)
-                            }
-                        },
-                        None => Err(CommandError::Unknown),
-                    }
+                let args = ShellString::to_string_vec(args.into_iter(), &self);
+                match args {
+                    Some(args) => Exec::new().args(args).env(self).execute(),
+                    None => Err(CommandError::Unknown),
                 }
             },
 
             "exit" => {
-                let status = match args.get(0) {
-                    Some(status) => {
-                        status
-                            .to_string(&self)
-                            .map(|v| v.parse().unwrap_or(255))
-                            .unwrap_or(255)
-                    },
-                    None => 0,
-                };
-                Ok(ExitStatus::ExitWith(status))
+                let args = ShellString::to_string_vec(args.into_iter(), &self);
+                match args {
+                    Some(args) => Exit::new().args(args).env(self).execute(),
+                    None => Err(CommandError::Unknown),
+                }
             },
 
             _ => {
@@ -173,9 +144,9 @@ impl Environment {
         }
     }
 
-    /// Finds an executable within this environment.
+    /// Finds an executable on the path.
     ///
-    fn find_executable(&self, command: &PathBuf) -> Option<PathBuf> {
+    pub fn find_executable(&self, command: &PathBuf) -> Option<PathBuf> {
         // TODO make this nicer
         if command.is_absolute() {
             self.executable(command.clone())
