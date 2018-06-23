@@ -37,7 +37,7 @@ impl <'e> Command<'e> for Executable {
         self
     }
 
-    fn env<'v: 'e>(&mut self, env: &'v Environment) -> &mut Self {
+    fn env<'v: 'e>(&mut self, env: &'v mut Environment) -> &mut Self {
         self.command.envs(env.vars());
         self.command.current_dir(env.working_directory());
         self

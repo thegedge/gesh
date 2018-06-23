@@ -15,9 +15,7 @@ use std::{
     process,
 };
 
-use self::command::{
-    Executable,
-};
+use self::command::*;
 
 use super::{
     strings::ShellString,
@@ -71,6 +69,12 @@ impl Environment {
         ))
     }
 
+    /// Sets the current working directory.
+    ///
+    pub fn set_working_directory(&mut self, path: PathBuf) {
+        self.working_directory = path;
+    }
+
     /// Returns the current working directory.
     ///
     pub fn working_directory(&self) -> &PathBuf {
@@ -100,19 +104,10 @@ impl Environment {
         // TODO refactor the builtins out of here into somewhere nicer
         match command.as_ref() {
             "cd" => {
-                let new_dir = match args.get(0) {
-                    Some(dir) => 
-                        dir.to_string(&self)
-                           .and_then(|v| PathBuf::from(v).canonicalize().ok()),
-                    None => env::home_dir(),
-                };
-
-                match new_dir {
-                    Some(dir) => {
-                        self.working_directory = dir;
-                        Ok(ExitStatus::Success(0))
-                    },
-                    None => Ok(ExitStatus::Success(0))
+                let args = ShellString::to_string_vec(args.into_iter(), &self);
+                match args {
+                    Some(args) => Cd::new().args(args).env(self).execute(),
+                    None => Err(CommandError::Unknown),
                 }
             },
 
@@ -166,7 +161,7 @@ impl Environment {
                         Some(interpolated_args) => {
                             Executable::new(path)
                                 .args(interpolated_args)
-                                .env(&self)
+                                .env(self)
                                 .execute()
                         },
                         None => Err(CommandError::Unknown),
