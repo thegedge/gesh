@@ -2,14 +2,12 @@
 //!
 macro_rules! builtin {
     ( $name:ident, $self:ident $body:block) => {
-        use environment::{
-            command::{
-                Command,
-                Error,
-                ExitStatus,
-            },
-            Environment
+        use command::{
+            Command,
+            Error,
+            ExitStatus,
         };
+        use environment::Environment;
 
         pub struct $name<'e> {
             env: Option<&'e mut Environment>,

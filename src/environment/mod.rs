@@ -1,7 +1,5 @@
 //! Encapsulates the environment in which commands within a shell executes.
 //!
-mod command;
-
 use std::{
     borrow::Borrow,
     collections::HashMap,
@@ -13,13 +11,12 @@ use std::{
     path::PathBuf,
 };
 
-use self::command::*;
-
 use super::{
+    command::*,
     strings::ShellString,
 };
 
-pub use self::command::{
+pub use command::{
     Command,
     Error as CommandError,
     ExitStatus,
