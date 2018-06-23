@@ -16,7 +16,7 @@ use std::{
 };
 
 use self::command::{
-    Command
+    Executable,
 };
 
 use super::{
@@ -24,8 +24,8 @@ use super::{
 };
 
 pub use self::command::{
+    Command,
     Error as CommandError,
-    ExecutableUnit,
     ExitStatus,
 };
 
@@ -132,7 +132,7 @@ impl Environment {
                                             .envs(self.vars.clone())
                                             .current_dir(&self.working_directory)
                                             .exec();
-                                    
+
                                         Err(CommandError::Unknown)
                                     },
                                     None => Err(CommandError::Unknown),
@@ -164,7 +164,7 @@ impl Environment {
                 if let Some(path) = absolute_command {
                     match ShellString::to_string_vec(args.into_iter(), &self) {
                         Some(interpolated_args) => {
-                            Command::new(path)
+                            Executable::new(path)
                                 .args(interpolated_args)
                                 .env(&self)
                                 .execute()

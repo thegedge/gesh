@@ -5,9 +5,9 @@ mod path;
 
 pub use self::{
     executable::{
+        Command,
         Error,
-        ExecutableUnit,
         ExitStatus,
     },
-    path::Command,
+    path::Executable,
 };

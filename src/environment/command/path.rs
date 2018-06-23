@@ -1,8 +1,8 @@
 //! Support for executable units from the pat.
 //!
 use super::{
+    Command,
     Error,
-    ExecutableUnit,
     ExitStatus,
 };
 
@@ -15,32 +15,29 @@ use std::{
     process,
 };
 
-/// An executable unit from the path
+/// An executable on the path.
 ///
-pub struct Command<'e> {
-    env: Option<&'e Environment>,
+pub struct Executable {
     command: process::Command,
 }
 
-impl <'e> Command<'e> {
-    /// Constructs a new path command for the executable at the given path.
+impl Executable {
+    /// Constructs a new command for the executable at the given path.
     ///
-    pub fn new<P: AsRef<OsStr>>(command_path: P) -> Command<'e> {
-        Command {
-            env: None,
+    pub fn new<P: AsRef<OsStr>>(command_path: P) -> Executable {
+        Executable {
             command: process::Command::new(command_path.as_ref()),
         }
     }
 }
 
-impl <'e> ExecutableUnit<'e> for Command<'e> {
+impl <'e> Command<'e> for Executable {
     fn args(&mut self, args: Vec<String>) -> &mut Self {
         self.command.args(args);
         self
     }
 
     fn env<'v: 'e>(&mut self, env: &'v Environment) -> &mut Self {
-        self.env = Some(env);
         self.command.envs(env.vars());
         self.command.current_dir(env.working_directory());
         self

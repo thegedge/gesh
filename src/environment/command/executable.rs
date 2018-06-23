@@ -1,4 +1,4 @@
-//! Traits and types for executable "units".
+//! Traits and types for commands, be it an executable on the path or a shell builtin.
 //!
 use environment::{
     Environment
@@ -8,7 +8,7 @@ use environment::{
 ///
 #[derive(Debug, PartialEq)]
 pub enum Error {
-    /// Command wasn't found on the path
+    /// Command couldn't be found anywhere.
     ///
     UnknownCommand,
 
@@ -29,13 +29,13 @@ pub enum ExitStatus {
     Success(u32),
 }
 
-/// A trait that represents an executable "unit".
+/// A trait that represents an arbitrary command.
 ///
-/// Within a shell, an executable unit could be a
-/// - command,
-/// - alias,
-/// - builtin, or
-/// - function.
+/// Within a shell, a command could be an
+/// - executable on the path,
+/// - a user-defined alias,
+/// - a shell builtin, or
+/// - a shell function.
 ///
 /// This trait takes an approach similar to `std::process::Command`, where the executable unit
 /// is formed with a builder pattern. All functions that build up the executable unit will
@@ -47,18 +47,16 @@ pub enum ExitStatus {
 /// SomeExecutableUnit.args(command_args).env(environment).execute()?
 /// ```
 ///
-pub trait ExecutableUnit<'e> {
-    /// Supply the given arguments as those for this executable unit.
+pub trait Command<'e> {
+    /// Supply the given arguments as those for this command.
     ///
     fn args(&mut self, args: Vec<String>) -> &mut Self;
 
-    /// Use the given `Environment` for this executable.
-    ///
-    /// TODO: May need a mutable ref of some type, for things like `export` that would mutate `env`
+    /// Use the given `Environment` for this command.
     ///
     fn env<'v: 'e>(&mut self, env: &'v Environment) -> &mut Self;
 
-    ///
+    /// Execute this command.
     ///
     fn execute(&mut self) -> Result<ExitStatus, Error>;
 }
