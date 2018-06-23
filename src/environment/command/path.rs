@@ -17,27 +17,30 @@ use std::{
 
 /// An executable unit from the path
 ///
-pub struct Command {
-    command: process::Command
+pub struct Command<'e> {
+    env: Option<&'e Environment>,
+    command: process::Command,
 }
 
-impl Command {
+impl <'e> Command<'e> {
     /// Constructs a new path command for the executable at the given path.
     ///
-    pub fn new<P: AsRef<OsStr>>(command_path: P) -> Command {
+    pub fn new<P: AsRef<OsStr>>(command_path: P) -> Command<'e> {
         Command {
+            env: None,
             command: process::Command::new(command_path.as_ref()),
         }
     }
 }
 
-impl ExecutableUnit for Command {
+impl <'e> ExecutableUnit<'e> for Command<'e> {
     fn args(&mut self, args: Vec<String>) -> &mut Self {
         self.command.args(args);
         self
     }
 
-    fn env(&mut self, env: &Environment) -> &mut Self {
+    fn env<'v: 'e>(&mut self, env: &'v Environment) -> &mut Self {
+        self.env = Some(env);
         self.command.envs(env.vars());
         self.command.current_dir(env.working_directory());
         self

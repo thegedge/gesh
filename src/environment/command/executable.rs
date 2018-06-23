@@ -47,7 +47,7 @@ pub enum ExitStatus {
 /// SomeExecutableUnit.args(command_args).env(environment).execute()?
 /// ```
 ///
-pub trait ExecutableUnit {
+pub trait ExecutableUnit<'e> {
     /// Supply the given arguments as those for this executable unit.
     ///
     fn args(&mut self, args: Vec<String>) -> &mut Self;
@@ -56,7 +56,7 @@ pub trait ExecutableUnit {
     ///
     /// TODO: May need a mutable ref of some type, for things like `export` that would mutate `env`
     ///
-    fn env(&mut self, env: &Environment) -> &mut Self;
+    fn env<'v: 'e>(&mut self, env: &'v Environment) -> &mut Self;
 
     ///
     ///
