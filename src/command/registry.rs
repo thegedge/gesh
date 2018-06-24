@@ -28,13 +28,18 @@ use strings::ShellString;
 /// A registry maintains the builtins, user-defined aliases, and so on. More generally, it's
 /// the entrypoint for executing a command on the shell.
 ///
-pub struct Registry;
+pub struct Registry {
+    executable_paths: Vec<PathBuf>,
+    working_directory: PathBuf,
+}
 
 impl Registry {
     /// Constructs a new registry.
     ///
-    pub fn new() -> Registry {
+    pub fn for_env(env: &Environment) -> Registry {
         Registry {
+            executable_paths: env.paths().clone(),
+            working_directory: env.working_directory().clone(),
         }
     }
 
@@ -69,7 +74,7 @@ impl Registry {
             },
 
             _ => {
-                let absolute_command = self.find_executable(&env, &PathBuf::from(command));
+                let absolute_command = self.find_executable(&PathBuf::from(command));
                 if let Some(path) = absolute_command {
                     match ShellString::to_string_vec(args.into_iter(), &env) {
                         Some(interpolated_args) => {
@@ -89,19 +94,19 @@ impl Registry {
 
     /// Finds an executable on the path.
     ///
-    pub fn find_executable(&self, env: &Environment, command: &PathBuf) -> Option<PathBuf> {
+    pub fn find_executable(&self, command: &PathBuf) -> Option<PathBuf> {
         // TODO make this nicer
         if command.is_absolute() {
             self.executable(command.clone())
         } else if command.parent() != Some(&PathBuf::from("")) {
-            let command_in_working_directory = env.working_directory().join(command);
+            let command_in_working_directory = self.working_directory.join(command);
             self.executable(command_in_working_directory)
         } else {
-            let mut executables_in_path = env.paths().iter().map(|path| self.executable(path.join(command)));
+            let mut executables_in_path = self.executable_paths.iter().map(|path| self.executable(path.join(command)));
             match executables_in_path.find(|path| path.is_some()) {
                 Some(executable) => executable,
                 None => {
-                    let command_in_working_directory = env.working_directory().join(command);
+                    let command_in_working_directory = self.working_directory.join(command);
                     self.executable(command_in_working_directory)
                 }
             }
@@ -127,24 +132,24 @@ mod tests {
     #[cfg(target_famlily = "unix")]
     #[test]
     fn test_execute_finds_and_executes_relative_command() {
-        let registry = Registry::new();
         let env = Environment::from_existing_env();
+        let registry = Registry::for_env(&env);
         assert_eq!(Some(0), registry.execute(&env, "true", vec![]).unwrap().code());
     }
 
     #[cfg(target_famlily = "unix")]
     #[test]
     fn test_execute_returns_error_when_not_on_path() {
-        let registry = Registry::new();
         let env = Environment::new(HashMap::new());
+        let registry = Registry::for_env(&env);
         assert_eq!(Err(Error::CommandNotFound), env.execute(&env, "true", vec![]));
     }
 
     #[cfg(target_famlily = "unix")]
     #[test]
     fn test_execute_executes_absolute_command() {
-        let registry = Registry::new();
         let env = Environment::new(HashMap::new());
+        let registry = Registry::for_env(&env);
         assert_eq!(Some(1), env.execute(&env, "/usr/bin/false", vec![]).unwrap().code());
     }
 }

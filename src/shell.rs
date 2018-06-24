@@ -52,7 +52,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
     ///
     pub fn run(&mut self) -> Result<ExitStatus, Error> {
         let mut env = Environment::from_existing_env();
-        let registry = Registry::new();
+        let registry = Registry::for_env(&env);
 
         loop {
             self.prompt.set_prompt(env.working_directory().to_string_lossy().into_owned().to_string() + "$ ");
