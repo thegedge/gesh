@@ -2,12 +2,14 @@
 //!
 mod builtin;
 mod path;
+mod registry;
 
 use environment::Environment;
 
 pub use self::{
     builtin::*,
     path::Executable,
+    registry::Registry,
 };
 
 /// The error type for environment errors.

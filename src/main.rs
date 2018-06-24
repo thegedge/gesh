@@ -10,7 +10,7 @@ mod shell;
 mod strings;
 
 use std::process;
-use environment::ExitStatus;
+use command::ExitStatus;
 
 fn main() {
   let mut my_shell = shell::Shell {

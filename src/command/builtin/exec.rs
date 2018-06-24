@@ -1,3 +1,4 @@
+/*
 use std::{
     path::PathBuf,
     process,
@@ -5,8 +6,7 @@ use std::{
         process::CommandExt,
     },
 };
-
-use environment::CommandError;
+*/
 
 builtin!(
     Exec,
@@ -15,6 +15,9 @@ builtin!(
             // TODO e.g., exec 2>&1 should make all stderr go to stdout in the shell
             Ok(ExitStatus::Success(0))
         } else {
+            Err(Error::Unknown)
+            // TODO find way to pass registry
+            /*
             match &self.env {
                 Some(env) => {
                     let absolute_command = env.find_executable(&PathBuf::from(&self.args[0]));
@@ -25,13 +28,14 @@ builtin!(
                             .current_dir(env.working_directory())
                             .exec();
 
-                        Err(CommandError::Unknown)
+                        Err(Error::Unknown)
                     } else {
-                        Err(CommandError::UnknownCommand)
+                        Err(Error::UnknownCommand)
                     }
                 },
-                None => Err(CommandError::Unknown),
+                None => Err(Error::Unknown),
             }
+            */
         }
     }
 );

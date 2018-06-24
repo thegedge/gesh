@@ -5,13 +5,14 @@
 //! * Command parsing
 //! * Job management
 //!
-use std::{
-    env,
+use command::{
+    self,
+    ExitStatus,
+    Registry,
 };
 
-use prompt::{
-    self,
-    Prompt,
+use environment::{
+    Environment,
 };
 
 use parser::{
@@ -20,10 +21,13 @@ use parser::{
     Parser,
 };
 
-use environment::{
+use prompt::{
     self,
-    Environment,
-    ExitStatus,
+    Prompt,
+};
+
+use std::{
+    env,
 };
 
 /// A user shell.
@@ -37,7 +41,7 @@ pub struct Shell<R: Prompt, P: Parser> {
 ///
 #[derive(Debug)]
 pub enum Error {
-    CommandError(environment::CommandError),
+    CommandError(command::Error),
     VarError(env::VarError),
     ParserError(parser::Error),
     PromptError(prompt::Error),
@@ -48,6 +52,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
     ///
     pub fn run(&mut self) -> Result<ExitStatus, Error> {
         let mut env = Environment::from_existing_env();
+        let registry = Registry::new();
 
         loop {
             self.prompt.set_prompt(env.working_directory().to_string_lossy().into_owned().to_string() + "$ ");
@@ -63,7 +68,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                 ParsedLine::Command(cmd, args) => {
                     match cmd.to_string(&env) {
                         Some(interpolated_cmd) => {
-                            let result = env.execute(&interpolated_cmd, args);
+                            let result = registry.execute(&mut env, &interpolated_cmd, args);
                             if let Ok(ExitStatus::ExitWith(code)) = result {
                                 return Ok(ExitStatus::ExitWith(code));
                             };
@@ -78,8 +83,8 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
     }
 }
 
-impl From<environment::CommandError> for Error {
-    fn from(err: environment::CommandError) -> Self {
+impl From<command::Error> for Error {
+    fn from(err: command::Error) -> Self {
         Error::CommandError(err)
     }
 }
