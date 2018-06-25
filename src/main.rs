@@ -1,3 +1,7 @@
+// Needed to impl FnMut by command::path::Executable
+#![feature(unboxed_closures)]
+#![feature(fn_traits)]
+
 #[macro_use]
 extern crate nom;
 extern crate rustyline;

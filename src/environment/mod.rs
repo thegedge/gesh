@@ -9,6 +9,7 @@ use std::{
 
 /// Supports executing commands within the context of a specific environment.
 ///
+#[derive(Clone)]
 pub struct Environment {
     paths: Vec<PathBuf>,
     vars: HashMap<String, String>,

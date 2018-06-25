@@ -1,9 +1,9 @@
 //! Support for executable units from the pat.
 //!
 use super::{
-    Command,
     Error,
     ExitStatus,
+    Result,
 };
 
 use environment::{
@@ -31,20 +31,34 @@ impl Executable {
     }
 }
 
-impl <'e> Command<'e> for Executable {
-    fn args(&mut self, args: Vec<String>) -> &mut Self {
-        self.command.args(args);
-        self
-    }
+impl <'e, Iter, Args> FnOnce<(&'e mut Environment, Args)> for Executable
+    where
+        Iter: Iterator<Item = String>,
+        Args: IntoIterator<Item = String, IntoIter = Iter>
+{
+    type Output = Result;
 
-    fn env<'v: 'e>(&mut self, env: &'v mut Environment) -> &mut Self {
-        self.command.envs(env.vars());
-        self.command.current_dir(env.working_directory());
-        self
-    }
-
-    fn execute(&mut self) -> Result<ExitStatus, Error> {
+    extern "rust-call" fn call_once(mut self, (env, args): (&mut Environment, Args)) -> Result {
         self.command
+            .envs(env.vars())
+            .current_dir(env.working_directory())
+            .args(args)
+            .status()
+            .map(|status| ExitStatus::Success(status.code().unwrap_or(1) as u32))
+            .map_err(|_| Error::Unknown)
+    }
+}
+
+impl <'e, Iter, Args> FnMut<(&'e mut Environment, Args)> for Executable
+    where
+        Iter: Iterator<Item = String>,
+        Args: IntoIterator<Item = String, IntoIter = Iter>
+{
+    extern "rust-call" fn call_mut(&mut self, (env, args): (&mut Environment, Args)) -> Result {
+        self.command
+            .envs(env.vars())
+            .current_dir(env.working_directory())
+            .args(args)
             .status()
             .map(|status| ExitStatus::Success(status.code().unwrap_or(1) as u32))
             .map_err(|_| Error::Unknown)

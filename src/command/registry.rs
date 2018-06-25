@@ -9,9 +9,9 @@ use std::{
 };
 
 use super::{
-    builtin::*,
+    builtin,
 
-    Command,
+    CommandBuilder,
     Error,
     Executable,
     ExitStatus,
@@ -49,56 +49,33 @@ impl Registry {
     ///
     pub fn execute(&self, env: &mut Environment, command: &String, args: Vec<ShellString>) -> Result<ExitStatus, Error> {
         match command.as_ref() {
-            "cd" => {
-                let args = ShellString::to_string_vec(args.into_iter(), env);
-                match args {
-                    Some(args) => Cd::new().args(args).env(env).execute(),
-                    None => Err(Error::Unknown),
-                }
-            },
-
-            "exec" => {
-                let args = ShellString::to_string_vec(args.into_iter(), &env);
-                match args {
-                    Some(args) => Exec::new().args(args).env(env).execute(),
-                    None => Err(Error::Unknown),
-                }
-            },
-
-            "exit" => {
-                let args = ShellString::to_string_vec(args.into_iter(), &env);
-                match args {
-                    Some(args) => Exit::new().args(args).env(env).execute(),
-                    None => Err(Error::Unknown),
-                }
-            },
-
+            "cd" => Ok(CommandBuilder::new(Box::new(builtin::cd))),
+            "exec" => Ok(CommandBuilder::new(Box::new(builtin::exec))),
+            "exit" => Ok(CommandBuilder::new(Box::new(builtin::exit))),
             _ => {
-                let absolute_command = self.find_executable(&PathBuf::from(command));
-                if let Some(path) = absolute_command {
-                    match ShellString::to_string_vec(args.into_iter(), &env) {
-                        Some(interpolated_args) => {
-                            Executable::new(path)
-                                .args(interpolated_args)
-                                .env(env)
-                                .execute()
-                        },
-                        None => Err(Error::Unknown),
-                    }
-                } else {
-                    Err(Error::UnknownCommand)
-                }
+                self.find_executable(&PathBuf::from(command))
+                    .map(|path| CommandBuilder::new(Box::new(Executable::new(path))))
+                    .ok_or(Error::UnknownCommand)
             }
-        }
+        }.and_then(|mut builder| {
+            match ShellString::to_string_vec(args.into_iter(), &env) {
+                Some(args) => {
+                    builder.args(args).env(env);
+                    builder.execute()
+                },
+                None => Err(Error::Unknown),
+            }
+        })
     }
 
     /// Finds an executable on the path.
     ///
     pub fn find_executable(&self, command: &PathBuf) -> Option<PathBuf> {
-        // TODO make this nicer
         if command.is_absolute() {
             self.executable(command.clone())
         } else if command.parent() != Some(&PathBuf::from("")) {
+            // A relative path, like foo/bar or ./spam
+            // TODO make the condition for this branch nicer
             let command_in_working_directory = self.working_directory.join(command);
             self.executable(command_in_working_directory)
         } else {

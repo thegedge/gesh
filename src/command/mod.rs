@@ -12,6 +12,11 @@ pub use self::{
     registry::Registry,
 };
 
+use std::result;
+
+/// Result type for executing commands.
+pub type Result = result::Result<ExitStatus, Error>;
+
 /// The error type for environment errors.
 ///
 #[derive(Debug, PartialEq)]
@@ -37,34 +42,64 @@ pub enum ExitStatus {
     Success(u32),
 }
 
-/// A trait that represents an arbitrary command.
+/// A builder for a shell command.
 ///
-/// Within a shell, a command could be an
-/// - executable on the path,
+/// Possibilities include:
+///
+/// - an executable on the path,
 /// - a user-defined alias,
 /// - a shell builtin, or
 /// - a shell function.
 ///
-/// This trait takes an approach similar to `std::process::Command`, where the executable unit
-/// is formed with a builder pattern. All functions that build up the executable unit will
-/// return itself so that they can be chained together.
+/// All of these will be wrapped up in `Func`.
 ///
-/// # Example
-///
-/// ```
-/// SomeExecutableUnit.args(command_args).env(environment).execute()?
-/// ```
-///
-pub trait Command<'e> {
+pub struct CommandBuilder<'e, Iter, Args>
+    where
+        Iter: Iterator<Item = String>,
+        Args: IntoIterator<Item = String, IntoIter = Iter>,
+{
+    env: Option<&'e mut Environment>,
+    args: Option<Args>,
+    f: Box<dyn FnMut(&mut Environment, Args) -> Result + 'e>,
+}
+
+impl <'e, Iter, Args> CommandBuilder<'e, Iter, Args>
+    where
+        Iter: Iterator<Item = String>,
+        Args: IntoIterator<Item = String, IntoIter = Iter>,
+{
+    /// Construct a `CommandBuilder` for the given function.
+    ///
+    pub fn new<Func>(f: Box<Func>) -> CommandBuilder<'e, Iter, Args>
+        where Func: FnMut(&mut Environment, Args) -> Result + 'e,
+    {
+        CommandBuilder {
+            env: None,
+            args: None,
+            f: f,
+        }
+    }
+
     /// Supply the given arguments as those for this command.
     ///
-    fn args(&mut self, args: Vec<String>) -> &mut Self;
+    pub fn args(&mut self, args: Args) -> &mut Self {
+        self.args = Some(args);
+        self
+    }
 
     /// Use the given `Environment` for this command.
     ///
-    fn env<'v: 'e>(&mut self, env: &'v mut Environment) -> &mut Self;
+    fn env(&mut self, env: &'e mut Environment) -> &mut Self {
+        self.env = Some(env);
+        self
+    }
 
     /// Execute this command.
     ///
-    fn execute(&mut self) -> Result<ExitStatus, Error>;
+    fn execute(mut self) -> Result {
+        match (self.env, self.args) {
+            (Some(env), Some(args)) => (self.f)(env, args),
+            _ => Err(Error::Unknown),
+        }
+    }
 }

@@ -3,25 +3,28 @@ use std::{
     path::PathBuf,
 };
 
-builtin!(
-    Cd,
-    self {
-        match self.env {
-            Some(ref mut env) => {
-                let new_dir = match self.args.get(0) {
-                    Some(dir) => PathBuf::from(dir).canonicalize().ok(),
-                    None => env::home_dir(),
-                };
+use command::{
+    ExitStatus,
+    Result,
+};
 
-                match new_dir {
-                    Some(dir) => {
-                        env.set_working_directory(dir);
-                        Ok(ExitStatus::Success(0))
-                    },
-                    None => Ok(ExitStatus::Success(0))
-                }
-            },
-            None => Err(Error::Unknown)
-        }
+use environment::Environment;
+
+pub fn cd<Iter, Args>(env: &mut Environment, args: Args) -> Result
+    where
+        Iter: Iterator<Item = String>,
+        Args: IntoIterator<Item = String, IntoIter = Iter>
+{
+    let new_dir = match args.into_iter().next() {
+        Some(dir) => PathBuf::from(dir).canonicalize().ok(),
+        None => env::home_dir(),
+    };
+
+    match new_dir {
+        Some(dir) => {
+            env.set_working_directory(dir);
+            Ok(ExitStatus::Success(0))
+        },
+        None => Ok(ExitStatus::Success(0))
     }
-);
+}
