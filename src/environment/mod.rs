@@ -55,6 +55,7 @@ impl Environment {
     /// Sets the current working directory.
     ///
     pub fn set_working_directory(&mut self, path: PathBuf) {
+        self.vars.insert("PWD".to_owned(), String::from(path.to_string_lossy()));
         self.working_directory = path;
     }
 
