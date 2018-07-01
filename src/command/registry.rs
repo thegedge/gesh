@@ -50,8 +50,11 @@ impl Registry {
     pub fn execute(&self, env: &mut Environment, command: &String, args: Vec<ShellString>) -> Result<ExitStatus, Error> {
         match command.as_ref() {
             "cd" => Ok(CommandBuilder::new(Box::new(builtin::cd))),
+            "dirs" => Ok(CommandBuilder::new(Box::new(builtin::dirs))),
             "exec" => Ok(CommandBuilder::new(Box::new(builtin::exec))),
             "exit" => Ok(CommandBuilder::new(Box::new(builtin::exit))),
+            "popd" => Ok(CommandBuilder::new(Box::new(builtin::popd))),
+            "pushd" => Ok(CommandBuilder::new(Box::new(builtin::pushd))),
             _ => {
                 self.find_executable(&PathBuf::from(command))
                     .map(|path| CommandBuilder::new(Box::new(Executable::new(path))))

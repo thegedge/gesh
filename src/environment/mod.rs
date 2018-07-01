@@ -14,6 +14,7 @@ pub struct Environment {
     paths: Vec<PathBuf>,
     vars: HashMap<String, String>,
     working_directory: PathBuf,
+    directory_stack: Vec<PathBuf>,
 }
 
 impl Environment {
@@ -30,6 +31,7 @@ impl Environment {
         Environment {
             paths: paths,
             vars: vars,
+            directory_stack: Vec::new(),
 
             // TODO something better than '/'?
             working_directory: env::current_dir().unwrap_or(PathBuf::from("/")),
@@ -60,6 +62,24 @@ impl Environment {
     ///
     pub fn working_directory(&self) -> &PathBuf {
         &self.working_directory
+    }
+
+    /// Push directory onto the directory stack.
+    ///
+    pub fn push_directory(&mut self, path: PathBuf) {
+        self.directory_stack.push(path)
+    }
+
+    /// Pop a directory from the directory stack.
+    ///
+    pub fn pop_directory(&mut self) -> Option<PathBuf> {
+        self.directory_stack.pop()
+    }
+
+    /// Pop a directory from the directory stack.
+    ///
+    pub fn directory_stack(&self) -> &Vec<PathBuf> {
+        &self.directory_stack
     }
 
     /// Gets the value of a variable from this environment.
