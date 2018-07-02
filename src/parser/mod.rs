@@ -32,7 +32,7 @@ pub enum ParsedLine {
 
     /// Set an environment variable.
     ///
-    SetVariable(ShellString, ShellString),
+    SetVariable(String, ShellString),
 
     /// The name of a command. This could be either a builtin, alias, function, or command
     /// that exists on the path

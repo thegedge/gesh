@@ -78,9 +78,8 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                     }
                 },
                 ParsedLine::SetVariable(name, value) => {
-                    let interpolated_name = name.to_string(&env).ok_or(Error::Unknown)?;
                     let interpolated_value = value.to_string(&env).ok_or(Error::Unknown)?;
-                    env.set(interpolated_name, interpolated_value);
+                    env.set(name, interpolated_value);
                 },
                 ParsedLine::Empty => continue,
             }

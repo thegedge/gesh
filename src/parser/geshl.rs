@@ -55,10 +55,10 @@ named!(
 named!(
     set_variable(&str) -> ParsedLine,
     do_parse!(
-        name: map!(env_var, |v| ShellString::from(v))
+        name: env_var
         >> char!('=')
         >> value: piece
-        >> (ParsedLine::SetVariable(name, value))
+        >> (ParsedLine::SetVariable(name.to_owned(), value))
     )
 );
 
