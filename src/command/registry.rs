@@ -53,6 +53,7 @@ impl Registry {
             "dirs" => Ok(CommandBuilder::new(Box::new(builtin::dirs))),
             "exec" => Ok(CommandBuilder::new(Box::new(builtin::exec))),
             "exit" => Ok(CommandBuilder::new(Box::new(builtin::exit))),
+            "export" => Ok(CommandBuilder::new(Box::new(builtin::export))),
             "popd" => Ok(CommandBuilder::new(Box::new(builtin::popd))),
             "pushd" => Ok(CommandBuilder::new(Box::new(builtin::pushd))),
             _ => {
