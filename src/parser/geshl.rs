@@ -7,6 +7,7 @@
 //!
 use nom::{
     self,
+    Context,
     InputTakeAtPosition,
     IResult,
     Needed,
@@ -171,7 +172,7 @@ named!(
 fn env_var(input: &str) -> IResult<&str, &str> {
     let c = input.chars().next().unwrap_or(' ');
     if !is_var_character(c) || c.is_ascii_digit() {
-        return Err(nom::Err::Incomplete(Needed::Size(1)))
+        return Err(nom::Err::Error(Context::Code(input, nom::ErrorKind::IsA)));
     }
 
     input.split_at_position(|v| !is_var_character(v))
@@ -307,6 +308,17 @@ impl parser::Parser for Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /*
+     * Tests for `parse_line`
+     */
+    #[test]
+    fn test_parse_line_parses_current_directory() {
+        assert_eq!(
+            ("\n", ParsedLine::Command(ShellString::from("./foo.sh"), Vec::new())),
+            parse_line("./foo.sh\n").expect("should parse")
+        );
+    }
 
     /*
      * Tests for `command`
