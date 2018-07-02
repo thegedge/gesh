@@ -45,6 +45,7 @@ pub enum Error {
     VarError(env::VarError),
     ParserError(parser::Error),
     PromptError(prompt::Error),
+    Unknown,
 }
 
 impl<R: Prompt, P: Parser> Shell<R, P> {
@@ -75,6 +76,11 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                         },
                         None => println!("No command given!")
                     }
+                },
+                ParsedLine::SetVariable(name, value) => {
+                    let interpolated_name = name.to_string(&env).ok_or(Error::Unknown)?;
+                    let interpolated_value = value.to_string(&env).ok_or(Error::Unknown)?;
+                    env.set(interpolated_name, interpolated_value);
                 },
                 ParsedLine::Empty => continue,
             }

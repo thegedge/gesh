@@ -40,7 +40,7 @@ impl <'e, Iter, Args> FnOnce<(&'e mut Environment, Args)> for Executable
 
     extern "rust-call" fn call_once(mut self, (env, args): (&mut Environment, Args)) -> Result {
         self.command
-            .envs(env.vars())
+            .envs(env.exported_vars())
             .current_dir(env.working_directory())
             .args(args)
             .status()
@@ -56,7 +56,7 @@ impl <'e, Iter, Args> FnMut<(&'e mut Environment, Args)> for Executable
 {
     extern "rust-call" fn call_mut(&mut self, (env, args): (&mut Environment, Args)) -> Result {
         self.command
-            .envs(env.vars())
+            .envs(env.exported_vars())
             .current_dir(env.working_directory())
             .args(args)
             .status()

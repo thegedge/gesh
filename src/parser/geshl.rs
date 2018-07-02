@@ -7,8 +7,6 @@
 //!
 use nom::{
     self,
-    AsChar,
-    FindToken,
     InputTakeAtPosition,
     IResult,
     Needed,
@@ -36,15 +34,30 @@ use strings::{
 
 /// A parser for geshl.
 ///
-pub struct Parser; 
+pub struct Parser;
 
 /// Parses an arbitrary line.
 ///
 named!(
     parse_line(&str) -> ParsedLine,
     alt!(
-        command
+        set_variable
+        | command
         | char!('\n') => { |_| ParsedLine::Empty }
+    )
+);
+
+/// Parses a variable setting line.
+///
+/// A command is a `piece` (the command) followed by zero or more pieces (the arguments).
+///
+named!(
+    set_variable(&str) -> ParsedLine,
+    do_parse!(
+        name: map!(env_var, |v| ShellString::from(v))
+        >> char!('=')
+        >> value: piece
+        >> (ParsedLine::SetVariable(name, value))
     )
 );
 
@@ -123,14 +136,14 @@ named!(
     map!(
         delimited!(
             char!('"'),
-            many_till!(alt!(env_var | fixed_string), peek!(char!('"'))),
+            many_till!(alt!(interpolated_env_var | fixed_string), peek!(char!('"'))),
             char!('"')
         ),
         |v| ShellString::from(v.0)
     )
 );
 
-/// Parses an environment variable.
+/// Parses an environment variable interpolation.
 ///
 /// ## Examples
 ///
@@ -138,16 +151,43 @@ named!(
 /// - `${SOME_DIR}`
 ///
 named!(
-    env_var(&str) -> Piece,
+    interpolated_env_var(&str) -> Piece,
     map!(
         do_parse!(
             tag!("$")
-            >> var: delimited!(tag!("{"), take_until!("}"), tag!("}"))
+            >> var: delimited!(tag!("{"), env_var, tag!("}"))
             >> (var)
         ),
         |v| Piece::Variable(v.to_owned())
     )
 );
+
+/// Returns whether or not `chr` is valid as a character in a variable name.
+///
+/// A variable name is composed of alphanumeric characters, and an underscore. If `is_not_first` is
+/// `false`, digits are excluded (in other words, the first character in a variable name cannot be a
+/// digit).
+///
+fn env_var(input: &str) -> IResult<&str, &str> {
+    let c = input.chars().next().unwrap_or(' ');
+    if !is_var_character(c) || c.is_ascii_digit() {
+        return Err(nom::Err::Incomplete(Needed::Size(1)))
+    }
+
+    input.split_at_position(|v| !is_var_character(v))
+}
+
+/// Returns whether or not `chr` is valid as a character in a variable name.
+///
+fn is_var_character(chr: char) -> bool {
+    match chr {
+        'a'...'z' => true,
+        'A'...'Z' => true,
+        '0'...'9' => true,
+        '_' => true,
+        _ => false,
+    }
+}
 
 /// Parses regular text inside of an interpolated string.
 ///
@@ -218,13 +258,8 @@ named!(
 
 /// Split input at space characters, not including newlines / carriage returns
 ///
-fn space<'a, T>(input: T) -> IResult<T, T>
-    where T: InputTakeAtPosition,
-          <T as InputTakeAtPosition>::Item: AsChar + Clone,
-          &'a str: FindToken<<T as InputTakeAtPosition>::Item>,
-{
-    input.split_at_position(|item| {
-        let c = item.clone().as_char();
+fn space(input: &str) -> IResult<&str, &str> {
+    input.split_at_position(|c| {
         !c.is_whitespace() || c == '\n' || c == '\r'
     })
 }

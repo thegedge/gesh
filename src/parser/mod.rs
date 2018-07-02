@@ -30,10 +30,14 @@ pub enum ParsedLine {
     ///
     Empty,
 
+    /// Set an environment variable.
+    ///
+    SetVariable(ShellString, ShellString),
+
     /// The name of a command. This could be either a builtin, alias, function, or command
     /// that exists on the path
     ///
-    Command(ShellString, Vec<ShellString>)
+    Command(ShellString, Vec<ShellString>),
 }
 
 /// A parser for shells

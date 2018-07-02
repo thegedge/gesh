@@ -80,7 +80,7 @@ impl Piece {
     pub fn to_string(&self, env: &Environment) -> Option<String> {
         match &self {
             Piece::Fixed(ref s) => Some(s.clone()),
-            Piece::Variable(ref name) => env.var(&name),
+            Piece::Variable(ref name) => env.get(&name),
         }
     }
 }

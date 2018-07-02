@@ -12,9 +12,11 @@ use std::{
 #[derive(Clone)]
 pub struct Environment {
     paths: Vec<PathBuf>,
-    vars: HashMap<String, String>,
     working_directory: PathBuf,
     directory_stack: Vec<PathBuf>,
+
+    vars: HashMap<String, String>,
+    exported_vars: HashMap<String, String>,
 }
 
 impl Environment {
@@ -30,7 +32,8 @@ impl Environment {
 
         Environment {
             paths: paths,
-            vars: vars,
+            vars: vars.clone(),
+            exported_vars: vars,
             directory_stack: Vec::new(),
 
             // TODO something better than '/'?
@@ -83,15 +86,6 @@ impl Environment {
         &self.directory_stack
     }
 
-    /// Gets the value of a variable from this environment.
-    ///
-    pub fn var<S: Borrow<String>>(&self, name: &S) -> Option<String> {
-        match self.vars.get(name.borrow()) {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
-    }
-
     /// Gets the value of the `PATH` variable as a `Vec`.
     ///
     pub fn paths(&self) -> &Vec<PathBuf> {
@@ -100,10 +94,43 @@ impl Environment {
 
     /// Gets the value of a variable from this environment.
     ///
+    pub fn get<S: Borrow<String>>(&self, name: &S) -> Option<String> {
+        match self.vars.get(name.borrow()) {
+            Some(s) => Some(s.clone()),
+            None => None,
+        }
+    }
+
+    /// Sets a variable in the environment.
+    ///
+    pub fn set(&mut self, name: String, value: String) -> Option<String> {
+        self.vars.insert(name, value)
+    }
+
+    /// Exports a varable.
+    ///
+    /// Exported variables will be included in the environment of subsequent commands. Variables
+    /// that haven't been exported can still be used in the shell.
+    ///
+    pub fn export(&mut self, name: String) {
+        if let Some(val) = self.get(&name) {
+            self.exported_vars.insert(name, val);
+        }
+    }
+
+    /// Gets all vars in this environment.
+    ///
     pub fn vars(&self) -> HashMap<String, String> {
         self.vars.clone()
     }
 
+    /// Gets the exported variables in this environment.
+    ///
+    /// Exported variables are the ones that get used in subsequent commands.
+    ///
+    pub fn exported_vars(&self) -> HashMap<String, String> {
+        self.exported_vars.clone()
+    }
 }
 
 #[cfg(test)]
@@ -121,8 +148,38 @@ mod tests {
 
         let env = Environment::new(vars);
         assert_eq!(expected_paths, env.paths.iter().map(|v| v.as_os_str()).collect::<Vec<_>>());
-        assert_eq!(Some(joined_paths), env.var(&"PATH".to_owned()));
-        assert_eq!(Some("/Users/foo".to_owned()), env.var(&"HOME".to_owned()));
-        assert_eq!(None, env.var(&"TMPDIR".to_owned()));
+        assert_eq!(Some(joined_paths), env.get(&"PATH".to_owned()));
+        assert_eq!(Some("/Users/foo".to_owned()), env.get(&"HOME".to_owned()));
+        assert_eq!(None, env.get(&"TMPDIR".to_owned()));
+    }
+
+    #[test]
+    fn test_push_and_pop() {
+        let mut env = Environment::new(HashMap::new());
+        env.push_directory(PathBuf::from("/usr"));
+        env.push_directory(PathBuf::from("/usr/local"));
+        env.push_directory(PathBuf::from("/usr/local/bin"));
+
+        assert_eq!(Some(PathBuf::from("/usr/local/bin")), env.pop_directory());
+
+        assert_eq!(
+            &vec![PathBuf::from("/usr"), PathBuf::from("/usr/local")],
+            env.directory_stack()
+        );
+
+        assert_eq!(Some(PathBuf::from("/usr/local")), env.pop_directory());
+        assert_eq!(Some(PathBuf::from("/usr/")), env.pop_directory());
+        assert_eq!(None, env.pop_directory());
+    }
+
+    #[test]
+    fn test_export_moves_variable_to_exported_variables() {
+        let mut env = Environment::new(HashMap::new());
+        env.set("FOO".to_owned(), "fooval".to_owned());
+        env.set("BAR".to_owned(), "barval".to_owned());
+        env.export("FOO".to_owned());
+
+        assert_eq!(Some(&"fooval".to_owned()), env.exported_vars().get(&"FOO".to_owned()));
+        assert_eq!(None, env.exported_vars().get(&"BAR".to_owned()));
     }
 }
