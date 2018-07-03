@@ -37,7 +37,7 @@ impl Environment {
             directory_stack: Vec::new(),
 
             // TODO something better than '/'?
-            working_directory: env::current_dir().unwrap_or(PathBuf::from("/")),
+            working_directory: env::current_dir().unwrap_or_else(|_| PathBuf::from("/")),
         }
     }
 
