@@ -75,8 +75,8 @@ named!(
     do_parse!(
         name: env_var
         >> char!('=')
-        >> value: piece
-        >> ((name.to_owned(), value))
+        >> value: opt!(piece)
+        >> ((name.to_owned(), value.unwrap_or_else(|| ShellString::from(""))))
     )
 );
 
@@ -365,7 +365,7 @@ mod tests {
     }
 
     /*
-     * Tests for `set_variables`
+     * Tests for `set_variable` and `set_variables`
      */
     #[test]
     fn test_set_variables_parses_multiple_variables() {
@@ -375,6 +375,14 @@ mod tests {
                 ("BAR".to_owned(), ShellString::from("spam")),
             ]),
             set_variables("FOO=bar BAR=spam\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_set_variable_parses_variable_without_a_value() {
+        assert_eq!(
+            ("\n", ("FOO".to_owned(), ShellString::from(""))),
+            set_variable("FOO=\n").expect("should parse")
         );
     }
 
