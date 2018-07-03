@@ -41,7 +41,7 @@ impl Environment {
         }
     }
 
-    ///
+    /// Create an environment from the existing environment.
     ///
     pub fn from_existing_env() -> Environment {
         let vars = env::vars();

@@ -66,10 +66,24 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
             };
 
             match parsed_line {
-                ParsedLine::Command(cmd, args) => {
+                ParsedLine::Command(vars, cmd, args) => {
                     match cmd.to_string(&env) {
                         Some(interpolated_cmd) => {
-                            let result = registry.execute(&mut env, &interpolated_cmd, args);
+                            // TODO find a nicer way to do this, perhaps by building up the command
+                            // instead of constructing a new env
+                            let result = if vars.len() == 0 {
+                                registry.execute(&mut env, &interpolated_cmd, args)
+                            } else {
+                                let mut temp_env = env.clone();
+                                for (name, value) in vars {
+                                    let interpolated_value = value.to_string(&temp_env).ok_or(Error::Unknown)?;
+                                    temp_env.set(name.clone(), interpolated_value);
+                                    temp_env.export(name);
+                                }
+
+                                registry.execute(&mut temp_env, &interpolated_cmd, args)
+                            };
+
                             if let Ok(ExitStatus::ExitWith(code)) = result {
                                 return Ok(ExitStatus::ExitWith(code));
                             };
@@ -77,10 +91,14 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                         None => println!("No command given!")
                     }
                 },
-                ParsedLine::SetVariable(name, value) => {
-                    let interpolated_value = value.to_string(&env).ok_or(Error::Unknown)?;
-                    env.set(name, interpolated_value);
+
+                ParsedLine::SetVariables(vars) => {
+                    for (name, value) in vars {
+                        let interpolated_value = value.to_string(&env).ok_or(Error::Unknown)?;
+                        env.set(name, interpolated_value);
+                    }
                 },
+
                 ParsedLine::Empty => continue,
             }
         }

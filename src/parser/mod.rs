@@ -18,9 +18,13 @@ pub type GeshlParser = geshl::Parser;
 #[derive(Clone, Debug)]
 pub struct Error;
 
-/// Uses for results form all parser functions
+/// Used for results form all parser functions
 ///
 pub type Result<T> = result::Result<T, Error>;
+
+/// A `name=value` variable to set.
+///
+pub type SetVariable = (String, ShellString);
 
 /// A line that has been parsed
 ///
@@ -30,14 +34,14 @@ pub enum ParsedLine {
     ///
     Empty,
 
-    /// Set an environment variable.
+    /// Sets an environment variable.
     ///
-    SetVariable(String, ShellString),
+    SetVariables(Vec<SetVariable>),
 
     /// The name of a command. This could be either a builtin, alias, function, or command
     /// that exists on the path
     ///
-    Command(ShellString, Vec<ShellString>),
+    Command(Vec<SetVariable>, ShellString, Vec<ShellString>),
 }
 
 /// A parser for shells
