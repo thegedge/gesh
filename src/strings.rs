@@ -1,5 +1,9 @@
 //! Provides string types that can be interpolated within an environment.
 //!
+use std::{
+    ops
+};
+
 use super::{
     environment::Environment,
 };
@@ -56,8 +60,19 @@ impl ShellString {
     }
 }
 
+impl ops::Add<ShellString> for ShellString {
+    type Output = ShellString;
+
+    fn add(mut self, rhs: ShellString) -> Self::Output {
+        self.pieces.extend(rhs.pieces.into_iter());
+        ShellString {
+            pieces: self.pieces
+        }
+    }
+}
+
 impl <'a> From<&'a str> for ShellString {
-    fn from(value: &'a str) -> Self {
+    fn from(value: &str) -> Self {
         ShellString { pieces: vec![Piece::Fixed(value.to_owned())] }
     }
 }
@@ -167,5 +182,22 @@ mod tests {
         let env = Environment::new(vars);
 
         assert_eq!(None, ShellString::to_string_vec(shell_strings.into_iter(), &env));
+    }
+
+    #[test]
+    fn test_adding_shellstrings_concatenates() {
+        let string1 = ShellString::from("this");
+        let string2 = ShellString::from(vec![
+            Piece::from(" is a "),
+            Piece::Variable("WHAT".to_owned()),
+        ]);
+
+        let expected = ShellString::from(vec![
+            Piece::from("this"),
+            Piece::from(" is a "),
+            Piece::Variable("WHAT".to_owned()),
+        ]);
+
+        assert_eq!(expected, string1 + string2);
     }
 }
