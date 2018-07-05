@@ -106,10 +106,14 @@ named!(
 ///
 named!(
     piece(&str) -> ShellString,
-    alt!(
-        path
-        | interpolated_string
-        | uninterpolated_string
+    fold_many1!(
+        alt!(
+            path
+            | interpolated_string
+            | uninterpolated_string
+        ),
+        ShellString::from(Vec::new()),
+        |acc, string| acc + string
     )
 );
 
@@ -412,6 +416,23 @@ mod tests {
         assert_eq!(
             ("\n", ShellString::from("echo")),
             piece("'echo'\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_piece_parses_multiple_adjacent_pieces() {
+        assert_eq!(
+            ("\n", ShellString::from(vec![
+                Piece::from("foo/"),
+                Piece::from("bar"),
+                Piece::from("/"),
+                Piece::Variable("HOME".to_owned()),
+                Piece::from(" x"),
+                Piece::from("/"),
+                Piece::from("more"),
+                Piece::from("stuff"),
+            ])),
+            piece("foo/'bar'/\"${HOME} x\"/'more'\"stuff\"\n").expect("should parse")
         );
     }
 
