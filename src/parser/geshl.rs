@@ -321,7 +321,7 @@ fn is_path_character(chr: char) -> bool {
         'a'...'z' => true,
         'A'...'Z' => true,
         '0'...'9' => true,
-        '~' | '-' | '_' | '.' => true,
+        '~' | '-' | '_' | '.' | '=' => true,
         _ => false,
     }
 }
@@ -384,6 +384,22 @@ mod tests {
                 ]
             )),
             command("/bin/echo My home 'dir is' \"${HOME}\"\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_command_parses_with_env_vars() {
+        assert_eq!(
+            ("\n", ParsedLine::Command(
+                vec![
+                    ("FOO".to_owned(), ShellString::from("bar"))
+                ],
+                vec![
+                    ShellString::from("export"),
+                    ShellString::from("BAR=baz"),
+                ]
+            )),
+            command("FOO=bar export BAR=baz\n").expect("should parse")
         );
     }
 
