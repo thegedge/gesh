@@ -38,10 +38,10 @@ pub enum ParsedLine {
     ///
     SetVariables(Vec<SetVariable>),
 
-    /// The name of a command. This could be either a builtin, alias, function, or command
-    /// that exists on the path
+    /// A command to run. This could be either a builtin, alias, function, or command that exists on
+    /// the path.
     ///
-    Command(Vec<SetVariable>, ShellString, Vec<ShellString>),
+    Command(Vec<SetVariable>, Vec<ShellString>),
 }
 
 /// A parser for shells

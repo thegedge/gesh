@@ -47,7 +47,7 @@ impl Registry {
     ///
     /// If found, returns the exit status of the command.
     ///
-    pub fn execute(&self, env: &mut Environment, command: &String, args: Vec<ShellString>) -> Result<ExitStatus, Error> {
+    pub fn execute(&self, env: &mut Environment, command: &String, args: Vec<String>) -> Result<ExitStatus, Error> {
         match command.as_ref() {
             "cd" => Ok(CommandBuilder::new(Box::new(builtin::cd))),
             "dirs" => Ok(CommandBuilder::new(Box::new(builtin::dirs))),
@@ -62,13 +62,8 @@ impl Registry {
                     .ok_or(Error::UnknownCommand)
             }
         }.and_then(|mut builder| {
-            match ShellString::to_string_vec(args.into_iter(), &env) {
-                Some(args) => {
-                    builder.args(args).env(env);
-                    builder.execute()
-                },
-                None => Err(Error::Unknown),
-            }
+            builder.args(args).env(env);
+            builder.execute()
         })
     }
 

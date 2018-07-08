@@ -80,7 +80,7 @@ named!(
     )
 );
 
-/// Parses a command prefixed with zero or more environtment variables to set.
+/// Parses a command prefixed with zero or more environment variables to set.
 ///
 /// # Examples
 ///
@@ -93,27 +93,46 @@ named!(
         space,
         do_parse!(
             env_vars: many0!(set_variable)
-            >> command: piece
-            >> args: many0!(piece)
-            >> (ParsedLine::Command(env_vars, command, args))
+            >> args: many1!(piece)
+            >> (ParsedLine::Command(env_vars, args))
         )
     )
 );
 
 /// Parses a string "piece".
 ///
-/// A piece could be a path, an unquoted string, an interpolated string, and so on.
+/// A piece could be a path, a glob, an unquoted string, an interpolated string, and so on.
 ///
 named!(
     piece(&str) -> ShellString,
     fold_many1!(
         alt!(
             path
+            | glob
             | interpolated_string
             | uninterpolated_string
         ),
         ShellString::from(Vec::new()),
         |acc, string| acc + string
+    )
+);
+
+/// Parses a glob
+///
+/// A piece could be a path, a glob, an unquoted string, an interpolated string, and so on.
+///
+named!(
+    glob(&str) -> ShellString,
+    map!(
+        alt!(
+            tag!("?") => { |v| String::from(v) }
+            | tag!("**") => { |v| String::from(v) }
+            | tag!("*") => { |v| String::from(v) }
+            | tag!("[]]") => { |v| String::from(v) }
+            | tag!("[!]]") => { |v| String::from(v) }
+            | delimited!(char!('['), is_not!("]"), char!(']')) => { |v| format!("[{}]", v) }
+        ),
+        |v| ShellString::from(Piece::Glob(v))
     )
 );
 
@@ -341,7 +360,7 @@ mod tests {
     #[test]
     fn test_parse_line_parses_current_directory() {
         assert_eq!(
-            ("\n", ParsedLine::Command(Vec::new(), ShellString::from("./foo.sh"), Vec::new())),
+            ("\n", ParsedLine::Command(Vec::new(), vec![ShellString::from("./foo.sh")])),
             parse_line("./foo.sh\n").expect("should parse")
         );
     }
@@ -354,8 +373,8 @@ mod tests {
         assert_eq!(
             ("\n", ParsedLine::Command(
                 Vec::new(),
-                ShellString::from("/bin/echo"),
                 vec![
+                    ShellString::from("/bin/echo"),
                     ShellString::from("My"),
                     ShellString::from("home"),
                     ShellString::from("dir is"),
@@ -433,6 +452,83 @@ mod tests {
                 Piece::from("stuff"),
             ])),
             piece("foo/'bar'/\"${HOME} x\"/'more'\"stuff\"\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_piece_parses_glob() {
+        assert_eq!(
+            ("\n", ShellString::from(vec![
+                Piece::from("foo/"),
+                Piece::from("bar"),
+                Piece::from("/"),
+                Piece::Variable("HOME".to_owned()),
+                Piece::from("/"),
+                Piece::Glob("**".to_owned()),
+                Piece::from("/"),
+                Piece::Glob("*".to_owned()),
+                Piece::from(".txt"),
+            ])),
+            piece("foo/'bar'/\"${HOME}\"/**/*.txt\n").expect("should parse")
+        );
+    }
+
+    /*
+     * Tests for `glob`
+     */
+    #[test]
+    fn test_glob_parses_question_glob() {
+        assert_eq!(
+            ("\n", ShellString::from(Piece::Glob("?".to_owned()))),
+            glob("?\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_glob_parses_star_glob() {
+        assert_eq!(
+            ("\n", ShellString::from(Piece::Glob("*".to_owned()))),
+            glob("*\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_glob_parses_recursive_star_glob() {
+        assert_eq!(
+            ("\n", ShellString::from(Piece::Glob("**".to_owned()))),
+            glob("**\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_glob_parses_character_glob_with_closing_bracket() {
+        assert_eq!(
+            ("\n", ShellString::from(Piece::Glob("[]]".to_owned()))),
+            glob("[]]\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_glob_parses_character_negation_glob_with_closing_bracket() {
+        assert_eq!(
+            ("\n", ShellString::from(Piece::Glob("[!]]".to_owned()))),
+            glob("[!]]\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_glob_parses_character_glob() {
+        assert_eq!(
+            ("\n", ShellString::from(Piece::Glob("[abc]".to_owned()))),
+            glob("[abc]\n").expect("should parse")
+        );
+    }
+
+    #[test]
+    fn test_glob_parses_character_negation_glob() {
+        assert_eq!(
+            ("\n", ShellString::from(Piece::Glob("[!0-9]".to_owned()))),
+            glob("[!0-9]\n").expect("should parse")
         );
     }
 

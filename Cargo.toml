@@ -6,3 +6,4 @@ authors = ["Jason Gedge <jason.gedge@shopify.com>"]
 [dependencies]
 nom = "4.0.0"
 rustyline = "1.0.0"
+glob = "0.2.11"

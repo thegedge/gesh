@@ -26,6 +26,8 @@ use prompt::{
     Prompt,
 };
 
+use strings::ShellString;
+
 use std::{
     env,
 };
@@ -45,7 +47,6 @@ pub enum Error {
     VarError(env::VarError),
     ParserError(parser::Error),
     PromptError(prompt::Error),
-    Unknown,
 }
 
 impl<R: Prompt, P: Parser> Shell<R, P> {
@@ -66,35 +67,38 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
             };
 
             match parsed_line {
-                ParsedLine::Command(vars, cmd, args) => {
-                    match cmd.to_string(&env) {
-                        Some(interpolated_cmd) => {
-                            // TODO find a nicer way to do this, perhaps by building up the command
-                            // instead of constructing a new env
-                            let result = if vars.len() == 0 {
-                                registry.execute(&mut env, &interpolated_cmd, args)
-                            } else {
-                                let mut temp_env = env.clone();
-                                for (name, value) in vars {
-                                    let interpolated_value = value.to_string(&temp_env).ok_or(Error::Unknown)?;
-                                    temp_env.set(name.clone(), interpolated_value);
-                                    temp_env.export(name);
-                                }
-
-                                registry.execute(&mut temp_env, &interpolated_cmd, args)
-                            };
-
-                            if let Ok(ExitStatus::ExitWith(code)) = result {
-                                return Ok(ExitStatus::ExitWith(code));
-                            };
-                        },
-                        None => println!("No command given!")
+                ParsedLine::Command(vars, pieces) => {
+                    // First, process the pieces
+                    let mut args = ShellString::to_string_vec(pieces.into_iter(), &env);
+                    if args.is_empty() {
+                        continue
                     }
+
+                    let cmd = args.remove(0);
+
+                    // If there are variables, we need to create a temporary environment with
+                    // the new vars. Otherwise we can just use the current one.
+                    let result = if vars.len() == 0 {
+                        registry.execute(&mut env, &cmd, args)
+                    } else {
+                        let mut temp_env = env.clone();
+                        for (name, value) in vars {
+                            let interpolated_value = value.to_string(&temp_env);
+                            temp_env.set(name.clone(), interpolated_value);
+                            temp_env.export(name);
+                        }
+
+                        registry.execute(&mut temp_env, &cmd, args)
+                    };
+
+                    if let Ok(ExitStatus::ExitWith(code)) = result {
+                        return Ok(ExitStatus::ExitWith(code));
+                    };
                 },
 
                 ParsedLine::SetVariables(vars) => {
                     for (name, value) in vars {
-                        let interpolated_value = value.to_string(&env).ok_or(Error::Unknown)?;
+                        let interpolated_value = value.to_string(&env);
                         env.set(name, interpolated_value);
                     }
                 },

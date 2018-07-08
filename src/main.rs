@@ -2,6 +2,7 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
 
+extern crate glob;
 #[macro_use]
 extern crate nom;
 extern crate rustyline;
