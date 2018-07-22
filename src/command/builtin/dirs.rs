@@ -6,26 +6,26 @@ use command::{
 
 use environment::Environment;
 
-pub fn dirs<Iter, Args>(env: &mut Environment, _args: Args) -> Result
+pub fn dirs<Iter, Args>(env: &mut Environment, _: Args) -> Result
     where
         Iter: Iterator<Item = String>,
         Args: IntoIterator<Item = String, IntoIter = Iter>
 {
     let stack = env.directory_stack();
-    if stack.len() > 0 {
+    if !stack.is_empty() {
         let mut iter = stack.iter();
         match iter.next().unwrap().to_str() {
             Some(string) => print!("{}", string),
             None => return Err(Error::Unknown),
         };
 
-        while let Some(dir) = iter.next() {
+        for dir in iter {
             match dir.to_str() {
                 Some(string) => print!(" {}", string),
                 None => return Err(Error::Unknown),
             };
         }
     }
-    print!("\n");
+    println!();
     Ok(ExitStatus::Success(0))
 }

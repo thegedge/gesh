@@ -41,41 +41,41 @@ pub enum Piece {
     Variable(String),
 }
 
-impl ShellString {
-    /// Converts a list of `ShellString`s to a list of `String`s.
-    ///
-    pub fn to_string_vec<V>(values: V, env: &Environment) -> Vec<String>
-        where V: Iterator<Item = ShellString>
-    {
-        values.fold(Vec::new(), |mut acc, string| {
-            if string.has_glob() {
-                let paths = glob::glob_with(
-                    &string.to_string(env),
-                    &glob::MatchOptions {
-                        case_sensitive: true,
-                        require_literal_separator: true,
-                        require_literal_leading_dot: true,
-                    }
-                );
-                
-                if paths.is_err() {
-                    return Vec::new();
+/// Converts a list of `ShellString`s to a list of `String`s.
+///
+pub fn to_string_vec<V>(values: V, env: &Environment) -> Vec<String>
+    where V: Iterator<Item = ShellString>
+{
+    values.fold(Vec::new(), |mut acc, string| {
+        if string.has_glob() {
+            let paths = glob::glob_with(
+                &string.to_string(env),
+                &glob::MatchOptions {
+                    case_sensitive: true,
+                    require_literal_separator: true,
+                    require_literal_leading_dot: true,
                 }
+            );
 
-                acc.extend(
-                    paths.unwrap()
-                        .filter_map(|path| path.ok())
-                        .filter_map(|path| path.into_os_string().into_string().ok())
-                        .collect::<Vec<_>>()
-                )
-            } else {
-                acc.push(string.to_string(env));
+            if paths.is_err() {
+                return Vec::new();
             }
 
-            acc
-        })
-    }
+            acc.extend(
+                paths.unwrap()
+                    .filter_map(|path| path.ok())
+                    .filter_map(|path| path.into_os_string().into_string().ok())
+                    .collect::<Vec<_>>()
+            )
+        } else {
+            acc.push(string.to_string(env));
+        }
 
+        acc
+    })
+}
+
+impl ShellString {
     /// Returns whether or not there is a glob component in this `ShellString`
     ///
     pub fn has_glob(&self) -> bool {
@@ -143,7 +143,7 @@ impl Piece {
         match &self {
             Piece::Fixed(ref s) => s.clone(),
             Piece::Glob(ref s) => s.clone(),
-            Piece::Variable(ref name) => env.get(&name).unwrap_or("".to_owned()),
+            Piece::Variable(ref name) => env.get(&name).unwrap_or_else(|| "".to_owned()),
         }
     }
 }
@@ -236,7 +236,7 @@ mod tests {
 
         assert_eq!(
             vec!["this is a test".to_owned(), "another".to_owned()],
-            ShellString::to_string_vec(shell_strings.into_iter(), &env)
+            to_string_vec(shell_strings.into_iter(), &env)
         );
     }
 
@@ -249,7 +249,7 @@ mod tests {
         let mut env = Environment::from_existing_env();
         env.set_working_directory(project_root());
 
-        let mut actual = ShellString::to_string_vec(shell_strings.into_iter(), &env);
+        let mut actual = to_string_vec(shell_strings.into_iter(), &env);
         actual.sort_unstable();
 
         assert_eq!(

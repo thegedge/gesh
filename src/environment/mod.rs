@@ -31,7 +31,7 @@ impl Environment {
         };
 
         Environment {
-            paths: paths,
+            paths,
             vars: vars.clone(),
             exported_vars: vars,
             directory_stack: Vec::new(),
@@ -116,12 +116,6 @@ impl Environment {
         if let Some(val) = self.get(&name) {
             self.exported_vars.insert(name, val);
         }
-    }
-
-    /// Gets all vars in this environment.
-    ///
-    pub fn vars(&self) -> HashMap<String, String> {
-        self.vars.clone()
     }
 
     /// Gets the exported variables in this environment.

@@ -11,7 +11,7 @@ pub fn export<Iter, Args>(env: &mut Environment, args: Args) -> Result
         Args: IntoIterator<Item = String, IntoIter = Iter>
 {
     for arg in args {
-        let mut split = arg.split("=");
+        let mut split = arg.split('=');
         let name_part = split.next();
         let value_part = split.next();
         match (name_part, value_part) {

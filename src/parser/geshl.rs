@@ -76,7 +76,7 @@ named!(
         name: env_var
         >> char!('=')
         >> value: opt!(piece)
-        >> ((name.to_owned(), value.unwrap_or_else(|| ShellString::from(""))))
+        >> (name.to_owned(), value.unwrap_or_else(|| ShellString::from("")))
     )
 );
 
@@ -152,7 +152,7 @@ named!(
     map!(
         take_while1!(is_path_character),
         |path| {
-            if path.chars().next() == Some('~') {
+            if path.starts_with('~') {
                 // TODO ~foo should reference the home dir of "foo"
                 let full_buf = PathBuf::from(path);
                 let mut components = full_buf.components();
@@ -267,7 +267,7 @@ named!(
                 | tag!("t") => { |_| "\t" }
             )
         ),
-        |v| Piece::from(v)
+        Piece::from
     )
 );
 
@@ -298,7 +298,7 @@ named!(
             ),
             char!('\'')
         ),
-        |v| ShellString::from(v)
+        ShellString::from
     )
 );
 

@@ -26,7 +26,7 @@ use prompt::{
     Prompt,
 };
 
-use strings::ShellString;
+use strings;
 
 use std::{
     env,
@@ -69,7 +69,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
             match parsed_line {
                 ParsedLine::Command(vars, pieces) => {
                     // First, process the pieces
-                    let mut args = ShellString::to_string_vec(pieces.into_iter(), &env);
+                    let mut args = strings::to_string_vec(pieces.into_iter(), &env);
                     if args.is_empty() {
                         continue
                     }
@@ -78,7 +78,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
 
                     // If there are variables, we need to create a temporary environment with
                     // the new vars. Otherwise we can just use the current one.
-                    let result = if vars.len() == 0 {
+                    let result = if vars.is_empty() {
                         registry.execute(&mut env, &cmd, args)
                     } else {
                         let mut temp_env = env.clone();

@@ -6,7 +6,7 @@ use command::{
 use environment::Environment;
 use super::cd;
 
-pub fn popd<Iter, Args>(env: &mut Environment, _args: Args) -> Result
+pub fn popd<Iter, Args>(env: &mut Environment, _: Args) -> Result
     where
         Iter: Iterator<Item = String>,
         Args: IntoIterator<Item = String, IntoIter = Iter>

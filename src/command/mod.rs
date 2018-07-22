@@ -76,7 +76,7 @@ impl <'e, Iter, Args> CommandBuilder<'e, Iter, Args>
         CommandBuilder {
             env: None,
             args: None,
-            f: f,
+            f,
         }
     }
 

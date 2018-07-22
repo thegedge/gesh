@@ -21,8 +21,6 @@ use environment::{
     Environment,
 };
 
-use strings::ShellString;
-
 /// A registry of commands.
 ///
 /// A registry maintains the builtins, user-defined aliases, and so on. More generally, it's
@@ -47,8 +45,8 @@ impl Registry {
     ///
     /// If found, returns the exit status of the command.
     ///
-    pub fn execute(&self, env: &mut Environment, command: &String, args: Vec<String>) -> Result<ExitStatus, Error> {
-        match command.as_ref() {
+    pub fn execute(&self, env: &mut Environment, command: &str, args: Vec<String>) -> Result<ExitStatus, Error> {
+        match command {
             "cd" => Ok(CommandBuilder::new(Box::new(builtin::cd))),
             "dirs" => Ok(CommandBuilder::new(Box::new(builtin::dirs))),
             "exec" => Ok(CommandBuilder::new(Box::new(builtin::exec))),
