@@ -9,10 +9,8 @@ use command::{
 
 use environment::Environment;
 
-pub fn pushd<Iter, Args>(env: &mut Environment, args: Args) -> Result
-    where
-        Iter: Iterator<Item = String>,
-        Args: IntoIterator<Item = String, IntoIter = Iter>
+pub fn pushd<Args>(env: &mut Environment, args: Args) -> Result
+    where Args: IntoIterator<Item = String>
 {
     match args.into_iter().next() {
         Some(dir) => {

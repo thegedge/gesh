@@ -5,10 +5,8 @@ use command::{
 
 use environment::Environment;
 
-pub fn export<Iter, Args>(env: &mut Environment, args: Args) -> Result
-    where
-        Iter: Iterator<Item = String>,
-        Args: IntoIterator<Item = String, IntoIter = Iter>
+pub fn export<Args>(env: &mut Environment, args: Args) -> Result
+    where Args: IntoIterator<Item = String>
 {
     for arg in args {
         let mut split = arg.split('=');

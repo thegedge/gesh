@@ -16,10 +16,8 @@ use command::{
 
 use environment::Environment;
 
-pub fn exec<Iter, Args>(_env: &mut Environment, args: Args) -> Result
-    where
-        Iter: Iterator<Item = String>,
-        Args: IntoIterator<Item = String, IntoIter = Iter>
+pub fn exec<Args>(_env: &mut Environment, args: Args) -> Result
+    where Args: IntoIterator<Item = String>
 {
     let mut args_iter = args.into_iter();
     match args_iter.next() {

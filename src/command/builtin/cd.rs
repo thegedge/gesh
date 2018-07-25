@@ -10,10 +10,8 @@ use command::{
 
 use environment::Environment;
 
-pub fn cd<Iter, Args>(env: &mut Environment, args: Args) -> Result
-    where
-        Iter: Iterator<Item = String>,
-        Args: IntoIterator<Item = String, IntoIter = Iter>
+pub fn cd<Args>(env: &mut Environment, args: Args) -> Result
+    where Args: IntoIterator<Item = String>
 {
     let new_dir = match args.into_iter().next() {
         Some(dir) => PathBuf::from(dir).canonicalize().ok(),

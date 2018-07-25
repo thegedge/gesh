@@ -6,10 +6,8 @@ use command::{
 
 use environment::Environment;
 
-pub fn dirs<Iter, Args>(env: &mut Environment, _: Args) -> Result
-    where
-        Iter: Iterator<Item = String>,
-        Args: IntoIterator<Item = String, IntoIter = Iter>
+pub fn dirs<Args>(env: &mut Environment, _: Args) -> Result
+    where Args: IntoIterator<Item = String>
 {
     let stack = env.directory_stack();
     if !stack.is_empty() {

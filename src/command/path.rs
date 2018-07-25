@@ -31,10 +31,8 @@ impl Executable {
     }
 }
 
-impl <'e, Iter, Args> FnOnce<(&'e mut Environment, Args)> for Executable
-    where
-        Iter: Iterator<Item = String>,
-        Args: IntoIterator<Item = String, IntoIter = Iter>
+impl <'e, Args> FnOnce<(&'e mut Environment, Args)> for Executable
+    where Args: IntoIterator<Item = String>
 {
     type Output = Result;
 
@@ -49,10 +47,8 @@ impl <'e, Iter, Args> FnOnce<(&'e mut Environment, Args)> for Executable
     }
 }
 
-impl <'e, Iter, Args> FnMut<(&'e mut Environment, Args)> for Executable
-    where
-        Iter: Iterator<Item = String>,
-        Args: IntoIterator<Item = String, IntoIter = Iter>
+impl <'e, Args> FnMut<(&'e mut Environment, Args)> for Executable
+    where Args: IntoIterator<Item = String>
 {
     extern "rust-call" fn call_mut(&mut self, (env, args): (&mut Environment, Args)) -> Result {
         self.command

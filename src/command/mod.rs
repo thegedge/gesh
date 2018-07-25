@@ -53,24 +53,20 @@ pub enum ExitStatus {
 ///
 /// All of these will be wrapped up in `Func`.
 ///
-pub struct CommandBuilder<'e, Iter, Args>
-    where
-        Iter: Iterator<Item = String>,
-        Args: IntoIterator<Item = String, IntoIter = Iter>,
+pub struct CommandBuilder<'e, Args>
+    where Args: IntoIterator<Item = String>,
 {
     env: Option<&'e mut Environment>,
     args: Option<Args>,
     f: Box<dyn FnMut(&mut Environment, Args) -> Result + 'e>,
 }
 
-impl <'e, Iter, Args> CommandBuilder<'e, Iter, Args>
-    where
-        Iter: Iterator<Item = String>,
-        Args: IntoIterator<Item = String, IntoIter = Iter>,
+impl <'e, Args> CommandBuilder<'e, Args>
+    where Args: IntoIterator<Item = String>,
 {
     /// Construct a `CommandBuilder` for the given function.
     ///
-    pub fn new<Func>(f: Box<Func>) -> CommandBuilder<'e, Iter, Args>
+    pub fn new<Func>(f: Box<Func>) -> CommandBuilder<'e, Args>
         where Func: FnMut(&mut Environment, Args) -> Result + 'e,
     {
         CommandBuilder {

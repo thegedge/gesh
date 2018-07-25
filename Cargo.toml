@@ -7,4 +7,4 @@ authors = ["Jason Gedge <jason.gedge@shopify.com>"]
 nom = "4.0.0"
 rustyline = "1.0.0"
 glob = "0.2.11"
-dirs = ""
+dirs = "1.0.2"
