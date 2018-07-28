@@ -7,6 +7,7 @@
 //!
 use command::{
     self,
+    Context,
     ExitStatus,
     Registry,
 };
@@ -79,7 +80,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                     // If there are variables, we need to create a temporary environment with
                     // the new vars. Otherwise we can just use the current one.
                     let result = if vars.is_empty() {
-                        registry.execute(&mut env, &cmd, args)
+                        registry.execute(&cmd, Context { env: &mut env, args })
                     } else {
                         let mut temp_env = env.clone();
                         for (name, value) in vars {
@@ -88,7 +89,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                             temp_env.export(name);
                         }
 
-                        registry.execute(&mut temp_env, &cmd, args)
+                        registry.execute(&cmd, Context { env: &mut temp_env, args })
                     };
 
                     if let Ok(ExitStatus::ExitWith(code)) = result {

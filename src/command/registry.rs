@@ -11,10 +11,10 @@ use std::{
 use super::{
     builtin,
 
-    CommandBuilder,
+    Context,
     Error,
     Executable,
-    ExitStatus,
+    Result
 };
 
 use environment::{
@@ -45,24 +45,22 @@ impl Registry {
     ///
     /// If found, returns the exit status of the command.
     ///
-    pub fn execute(&self, env: &mut Environment, command: &str, args: Vec<String>) -> Result<ExitStatus, Error> {
+    pub fn execute(&self, command: &str, context: Context) -> Result {
         match command {
-            "cd" => Ok(CommandBuilder::new(Box::new(builtin::cd))),
-            "dirs" => Ok(CommandBuilder::new(Box::new(builtin::dirs))),
-            "exec" => Ok(CommandBuilder::new(Box::new(builtin::exec))),
-            "exit" => Ok(CommandBuilder::new(Box::new(builtin::exit))),
-            "export" => Ok(CommandBuilder::new(Box::new(builtin::export))),
-            "popd" => Ok(CommandBuilder::new(Box::new(builtin::popd))),
-            "pushd" => Ok(CommandBuilder::new(Box::new(builtin::pushd))),
+            "cd" => builtin::cd(context),
+            "dirs" => builtin::dirs(context),
+            "exec" => builtin::exec(context),
+            "exit" => builtin::exit(context),
+            "export" => builtin::export(context),
+            "popd" => builtin::popd(context),
+            "pushd" => builtin::pushd(context),
             _ => {
-                self.find_executable(&PathBuf::from(command))
-                    .map(|path| CommandBuilder::new(Box::new(Executable::new(path))))
-                    .ok_or(Error::UnknownCommand)
+                match self.find_executable(&PathBuf::from(command)) {
+                    Some(path) => Executable::new(path).execute(context),
+                    None => Err(Error::UnknownCommand),
+                }
             }
-        }.and_then(|mut builder| {
-            builder.args(args).env(env);
-            builder.execute()
-        })
+        }
     }
 
     /// Finds an executable on the path.

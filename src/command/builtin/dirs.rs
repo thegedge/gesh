@@ -1,14 +1,11 @@
 use command::{
+    Context,
     Error,
     ExitStatus,
     Result,
 };
 
-use environment::Environment;
-
-pub fn dirs<Args>(env: &mut Environment, _: Args) -> Result
-    where Args: IntoIterator<Item = String>
-{
+pub fn dirs(Context { env, .. }: Context) -> Result {
     let stack = env.directory_stack();
     if !stack.is_empty() {
         let mut iter = stack.iter();
@@ -25,5 +22,6 @@ pub fn dirs<Args>(env: &mut Environment, _: Args) -> Result
         }
     }
     println!();
+
     Ok(ExitStatus::Success(0))
 }

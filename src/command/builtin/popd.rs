@@ -1,18 +1,16 @@
 use command::{
+    Context,
     ExitStatus,
     Result,
 };
 
-use environment::Environment;
 use super::cd;
 
-pub fn popd<Args>(env: &mut Environment, _: Args) -> Result
-    where Args: IntoIterator<Item = String>
-{
+pub fn popd(Context { env, .. }: Context) -> Result {
     match env.pop_directory() {
         Some(dir) => {
             match dir.into_os_string().into_string() {
-                Ok(dir_string) => cd(env, vec![dir_string]),
+                Ok(dir_string) => cd(Context { env, args: vec![dir_string] }),
                 _ => Ok(ExitStatus::Success(1)),
             }
         },

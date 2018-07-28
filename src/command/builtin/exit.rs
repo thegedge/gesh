@@ -1,13 +1,10 @@
 use command::{
+    Context,
     ExitStatus,
     Result,
 };
 
-use environment::Environment;
-
-pub fn exit<Args>(_env: &mut Environment, args: Args) -> Result
-    where Args: IntoIterator<Item = String>
-{
+pub fn exit(Context { args, .. }: Context) -> Result {
     let status = match args.into_iter().next() {
         Some(status) => status.parse().unwrap_or(255),
         None => 0,

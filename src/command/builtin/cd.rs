@@ -4,18 +4,16 @@ use std::{
 };
 
 use command::{
+    Context,
     ExitStatus,
     Result,
 };
 
-use environment::Environment;
-
-pub fn cd<Args>(env: &mut Environment, args: Args) -> Result
-    where Args: IntoIterator<Item = String>
-{
-    let new_dir = match args.into_iter().next() {
-        Some(dir) => PathBuf::from(dir).canonicalize().ok(),
-        None => env::home_dir(),
+pub fn cd(Context { env, args }: Context) -> Result {
+    let new_dir = match args.len() {
+        0 => env::home_dir(),
+        1 => PathBuf::from(&args[0]).canonicalize().ok(),
+        _ => return Ok(ExitStatus::Success(1)),
     };
 
     match new_dir {

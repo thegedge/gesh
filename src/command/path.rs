@@ -1,13 +1,10 @@
 //! Support for executable units from the pat.
 //!
 use super::{
+    Context,
     Error,
     ExitStatus,
     Result,
-};
-
-use environment::{
-    Environment
 };
 
 use std::{
@@ -29,28 +26,10 @@ impl Executable {
             command: process::Command::new(command_path.as_ref()),
         }
     }
-}
 
-impl <'e, Args> FnOnce<(&'e mut Environment, Args)> for Executable
-    where Args: IntoIterator<Item = String>
-{
-    type Output = Result;
-
-    extern "rust-call" fn call_once(mut self, (env, args): (&mut Environment, Args)) -> Result {
-        self.command
-            .envs(env.exported_vars())
-            .current_dir(env.working_directory())
-            .args(args)
-            .status()
-            .map(|status| ExitStatus::Success(status.code().unwrap_or(1) as u32))
-            .map_err(|_| Error::Unknown)
-    }
-}
-
-impl <'e, Args> FnMut<(&'e mut Environment, Args)> for Executable
-    where Args: IntoIterator<Item = String>
-{
-    extern "rust-call" fn call_mut(&mut self, (env, args): (&mut Environment, Args)) -> Result {
+    /// Execute this command within the given context.
+    ///
+    pub fn execute(mut self, Context { env, args }: Context) -> Result {
         self.command
             .envs(env.exported_vars())
             .current_dir(env.working_directory())

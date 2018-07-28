@@ -1,5 +1,12 @@
 //! Executing commands in an environment.
 //!
+//! Possibilities for commands include:
+//!
+//! - an executable on the path,
+//! - a user-defined alias,
+//! - a shell builtin, or
+//! - a shell function.
+//!
 mod builtin;
 mod path;
 mod registry;
@@ -12,7 +19,9 @@ pub use self::{
     registry::Registry,
 };
 
-use std::result;
+use std::{
+    result
+};
 
 /// Result type for executing commands.
 pub type Result = result::Result<ExitStatus, Error>;
@@ -42,60 +51,9 @@ pub enum ExitStatus {
     Success(u32),
 }
 
-/// A builder for a shell command.
+/// A context for running commands.
 ///
-/// Possibilities include:
-///
-/// - an executable on the path,
-/// - a user-defined alias,
-/// - a shell builtin, or
-/// - a shell function.
-///
-/// All of these will be wrapped up in `Func`.
-///
-pub struct CommandBuilder<'e, Args>
-    where Args: IntoIterator<Item = String>,
-{
-    env: Option<&'e mut Environment>,
-    args: Option<Args>,
-    f: Box<dyn FnMut(&mut Environment, Args) -> Result + 'e>,
-}
-
-impl <'e, Args> CommandBuilder<'e, Args>
-    where Args: IntoIterator<Item = String>,
-{
-    /// Construct a `CommandBuilder` for the given function.
-    ///
-    pub fn new<Func>(f: Box<Func>) -> CommandBuilder<'e, Args>
-        where Func: FnMut(&mut Environment, Args) -> Result + 'e,
-    {
-        CommandBuilder {
-            env: None,
-            args: None,
-            f,
-        }
-    }
-
-    /// Supply the given arguments as those for this command.
-    ///
-    pub fn args(&mut self, args: Args) -> &mut Self {
-        self.args = Some(args);
-        self
-    }
-
-    /// Use the given `Environment` for this command.
-    ///
-    fn env(&mut self, env: &'e mut Environment) -> &mut Self {
-        self.env = Some(env);
-        self
-    }
-
-    /// Execute this command.
-    ///
-    fn execute(mut self) -> Result {
-        match (self.env, self.args) {
-            (Some(env), Some(args)) => (self.f)(env, args),
-            _ => Err(Error::Unknown),
-        }
-    }
+pub struct Context<'e> {
+    pub env: &'e mut Environment,
+    pub args: Vec<String>,
 }

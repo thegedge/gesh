@@ -3,15 +3,12 @@ use std::{
 };
 
 use command::{
+    Context,
     ExitStatus,
     Result,
 };
 
-use environment::Environment;
-
-pub fn pushd<Args>(env: &mut Environment, args: Args) -> Result
-    where Args: IntoIterator<Item = String>
-{
+pub fn pushd(Context { env, args }: Context) -> Result {
     match args.into_iter().next() {
         Some(dir) => {
             env.push_directory(PathBuf::from(dir));
