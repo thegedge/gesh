@@ -20,6 +20,22 @@ pub struct Environment {
 }
 
 impl Environment {
+    /// Creates an empty environment.
+    ///
+    /// Defaults to containing the same paths as the shell's PATH environment variable.
+    ///
+    pub fn empty() -> Environment {
+        Environment {
+            paths: Vec::new(),
+            vars: HashMap::new(),
+            exported_vars: HashMap::new(),
+            directory_stack: Vec::new(),
+
+            // TODO something better than '/'?
+            working_directory: env::current_dir().unwrap_or_else(|_| PathBuf::from("/")),
+        }
+    }
+
     /// Creates a new environment.
     ///
     /// Defaults to containing the same paths as the shell's PATH environment variable.
