@@ -41,6 +41,7 @@ pub enum Error {
 
 /// Exit status for executing a command.
 ///
+#[derive(Debug, PartialEq)]
 pub enum ExitStatus {
     /// Instructs the caller that the command requested that the shell exit.
     ///

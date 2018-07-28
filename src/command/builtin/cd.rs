@@ -13,7 +13,7 @@ pub fn cd(Context { env, args }: Context) -> Result {
     let new_dir = match args.len() {
         0 => env::home_dir(),
         1 => PathBuf::from(&args[0]).canonicalize().ok(),
-        _ => return Ok(ExitStatus::Success(1)),
+        _ => return Ok(ExitStatus::Success(2)),
     };
 
     match new_dir {
@@ -21,6 +21,59 @@ pub fn cd(Context { env, args }: Context) -> Result {
             env.set_working_directory(dir);
             Ok(ExitStatus::Success(0))
         },
-        None => Ok(ExitStatus::Success(0))
+        None => Ok(ExitStatus::Success(1))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use environment::Environment;
+
+    #[test]
+    fn test_cd_switches_to_home_dir_with_no_arguments() {
+        let env = &mut Environment::from_existing_env();
+        let args = vec![];
+
+        let result = cd(Context { env, args });
+
+        assert_eq!(Ok(ExitStatus::Success(0)), result);
+        assert_eq!(env::home_dir().unwrap(), *env.working_directory());
+    }
+
+    #[test]
+    fn test_cd_switches_to_canonical_form_of_given_directory() {
+        let env = &mut Environment::from_existing_env();
+        let args = vec![String::from(env::temp_dir().to_string_lossy())];
+
+        let result = cd(Context { env, args });
+
+        assert_eq!(Ok(ExitStatus::Success(0)), result);
+        assert_eq!(env::temp_dir().canonicalize().unwrap(), *env.working_directory());
+    }
+
+    #[test]
+    fn test_cd_returns_error_when_too_many_arguments() {
+        let env = &mut Environment::from_existing_env();
+        let args = vec!["too".to_owned(), "many".to_owned(), "arguments".to_owned()];
+        let original_working_directory = env.working_directory().clone();
+
+        let result = cd(Context { env, args });
+
+        assert_eq!(Ok(ExitStatus::Success(2)), result);
+        assert_eq!(original_working_directory, *env.working_directory());
+    }
+
+    #[test]
+    fn test_cd_returns_error_when_path_doesnt_exist() {
+        let env = &mut Environment::from_existing_env();
+        let args = vec!["not/a/directory/that/exists".to_owned()];
+        let original_working_directory = env.working_directory().clone();
+
+        let result = cd(Context { env, args });
+
+        assert_eq!(Ok(ExitStatus::Success(1)), result);
+        assert_eq!(original_working_directory, *env.working_directory());
     }
 }
