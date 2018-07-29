@@ -8,22 +8,21 @@
 //! - a shell function.
 //!
 mod builtin;
+mod context;
 mod path;
 mod registry;
 
-use environment::Environment;
-
 pub use self::{
     builtin::*,
+    context::Context,
     path::Executable,
     registry::Registry,
 };
 
-use std::{
-    result
-};
+use std::result;
 
 /// Result type for executing commands.
+///
 pub type Result = result::Result<ExitStatus, Error>;
 
 /// The error type for environment errors.
@@ -50,11 +49,4 @@ pub enum ExitStatus {
     /// Successfully ran command, with the given status code.
     ///
     Success(u32),
-}
-
-/// A context for running commands.
-///
-pub struct Context<'e> {
-    pub env: &'e mut Environment,
-    pub args: Vec<String>,
 }
