@@ -13,14 +13,6 @@ use nom::{
     Needed,
 };
 
-use parser::{
-    self,
-    Error,
-    ParsedLine,
-    Result,
-    SetVariable,
-};
-
 use std::{
     ffi::OsString,
     path::{
@@ -32,6 +24,16 @@ use std::{
 use strings::{
     Piece,
     ShellString,
+};
+
+use parser::{
+    self,
+
+    Command,
+    Error,
+    ParsedLine,
+    Result,
+    SetVariable,
 };
 
 /// A parser for geshl.
@@ -76,7 +78,10 @@ named!(
         name: env_var
         >> char!('=')
         >> value: opt!(piece)
-        >> (name.to_owned(), value.unwrap_or_else(|| ShellString::from("")))
+        >> (SetVariable {
+            name: name.to_owned(),
+            value: value.unwrap_or_else(|| ShellString::from(""))
+        })
     )
 );
 
@@ -92,9 +97,9 @@ named!(
     sep!(
         space,
         do_parse!(
-            env_vars: many0!(set_variable)
+            vars: many0!(set_variable)
             >> args: many1!(piece)
-            >> (ParsedLine::Command(env_vars, args))
+            >> (ParsedLine::Command(Command { vars, args }))
         )
     )
 );
@@ -360,7 +365,10 @@ mod tests {
     #[test]
     fn test_parse_line_parses_current_directory() {
         assert_eq!(
-            ("\n", ParsedLine::Command(Vec::new(), vec![ShellString::from("./foo.sh")])),
+            ("\n", ParsedLine::Command(Command {
+                vars: Vec::new(),
+                args: vec![ShellString::from("./foo.sh")],
+            })),
             parse_line("./foo.sh\n").expect("should parse")
         );
     }
@@ -371,9 +379,9 @@ mod tests {
     #[test]
     fn test_command_parses() {
         assert_eq!(
-            ("\n", ParsedLine::Command(
-                Vec::new(),
-                vec![
+            ("\n", ParsedLine::Command(Command {
+                vars: Vec::new(),
+                args: vec![
                     ShellString::from("/bin/echo"),
                     ShellString::from("My"),
                     ShellString::from("home"),
@@ -381,8 +389,8 @@ mod tests {
                     ShellString::from(vec![
                         Piece::Variable("HOME".to_owned())
                     ])
-                ]
-            )),
+                ],
+            })),
             command("/bin/echo My home 'dir is' \"${HOME}\"\n").expect("should parse")
         );
     }
@@ -390,15 +398,15 @@ mod tests {
     #[test]
     fn test_command_parses_with_env_vars() {
         assert_eq!(
-            ("\n", ParsedLine::Command(
-                vec![
-                    ("FOO".to_owned(), ShellString::from("bar"))
+            ("\n", ParsedLine::Command(Command {
+                vars: vec![
+                    SetVariable { name: "FOO".to_owned(), value: ShellString::from("bar") }
                 ],
-                vec![
+                args: vec![
                     ShellString::from("export"),
                     ShellString::from("BAR=baz"),
-                ]
-            )),
+                ],
+            })),
             command("FOO=bar export BAR=baz\n").expect("should parse")
         );
     }
@@ -410,8 +418,8 @@ mod tests {
     fn test_set_variables_parses_multiple_variables() {
         assert_eq!(
             ("\n", vec![
-                ("FOO".to_owned(), ShellString::from("bar")),
-                ("BAR".to_owned(), ShellString::from("spam")),
+                SetVariable { name: "FOO".to_owned(), value: ShellString::from("bar") },
+                SetVariable { name: "BAR".to_owned(), value: ShellString::from("spam") },
             ]),
             set_variables("FOO=bar BAR=spam\n").expect("should parse")
         );
@@ -420,7 +428,7 @@ mod tests {
     #[test]
     fn test_set_variable_parses_variable_without_a_value() {
         assert_eq!(
-            ("\n", ("FOO".to_owned(), ShellString::from(""))),
+            ("\n", SetVariable { name: "FOO".to_owned(), value: ShellString::from("") }),
             set_variable("FOO=\n").expect("should parse")
         );
     }

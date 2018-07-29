@@ -24,7 +24,19 @@ pub type Result<T> = result::Result<T, Error>;
 
 /// A `name=value` variable to set.
 ///
-pub type SetVariable = (String, ShellString);
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetVariable {
+    pub name: String,
+    pub value: ShellString,
+}
+
+/// A command and its context.
+///
+#[derive(Clone, Debug, PartialEq)]
+pub struct Command {
+    pub vars: Vec<SetVariable>,
+    pub args: Vec<ShellString>,
+}
 
 /// A line that has been parsed
 ///
@@ -41,7 +53,7 @@ pub enum ParsedLine {
     /// A command to run. This could be either a builtin, alias, function, or command that exists on
     /// the path.
     ///
-    Command(Vec<SetVariable>, Vec<ShellString>),
+    Command(Command),
 }
 
 /// A parser for shells

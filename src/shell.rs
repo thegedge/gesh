@@ -18,8 +18,10 @@ use environment::{
 
 use parser::{
     self,
+    Command,
     ParsedLine,
     Parser,
+    SetVariable,
 };
 
 use prompt::{
@@ -68,7 +70,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
             };
 
             match parsed_line {
-                ParsedLine::Command(vars, pieces) => {
+                ParsedLine::Command(Command { vars, args: pieces }) => {
                     // First, process the pieces
                     let mut args = strings::to_string_vec(pieces.into_iter(), &env);
                     if args.is_empty() {
@@ -83,7 +85,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                         registry.execute(&cmd, Context { env: &mut env, args })
                     } else {
                         let mut temp_env = env.clone();
-                        for (name, value) in vars {
+                        for SetVariable { name, value } in vars {
                             let interpolated_value = value.to_string(&temp_env);
                             temp_env.set(name.clone(), interpolated_value);
                             temp_env.export(name);
@@ -98,7 +100,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                 },
 
                 ParsedLine::SetVariables(vars) => {
-                    for (name, value) in vars {
+                    for SetVariable { name, value } in vars {
                         let interpolated_value = value.to_string(&env);
                         env.set(name, interpolated_value);
                     }
