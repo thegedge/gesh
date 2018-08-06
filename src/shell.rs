@@ -16,11 +16,11 @@ use environment::{
     Environment,
 };
 
-use parser::{
+use geshl::{
     self,
+
     Command,
     ParsedLine,
-    Parser,
     SetVariable,
 };
 
@@ -37,9 +37,9 @@ use std::{
 
 /// A user shell.
 ///
-pub struct Shell<R: Prompt, P: Parser> {
+pub struct Shell<R: Prompt> {
     pub prompt: R,
-    pub parser: P,
+    pub parser: geshl::Parser,
 }
 
 /// Enumeration of all possible errors that can occur in the shell.
@@ -48,11 +48,11 @@ pub struct Shell<R: Prompt, P: Parser> {
 pub enum Error {
     CommandError(command::Error),
     VarError(env::VarError),
-    ParserError(parser::Error),
+    ParserError(geshl::Error),
     PromptError(prompt::Error),
 }
 
-impl<R: Prompt, P: Parser> Shell<R, P> {
+impl<R: Prompt> Shell<R> {
     /// Runs the shell's main read -> parse -> execute loop.
     ///
     pub fn run(&mut self) -> Result<ExitStatus, Error> {
@@ -86,7 +86,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
                     } else {
                         let mut temp_env = env.clone();
                         for SetVariable { name, value } in vars {
-                            let interpolated_value = value.to_string(&temp_env);
+                            let interpolated_value = strings::shellstring_to_string(&value, &temp_env);
                             temp_env.set(name.clone(), interpolated_value);
                             temp_env.export(name);
                         }
@@ -101,7 +101,7 @@ impl<R: Prompt, P: Parser> Shell<R, P> {
 
                 ParsedLine::SetVariables(vars) => {
                     for SetVariable { name, value } in vars {
-                        let interpolated_value = value.to_string(&env);
+                        let interpolated_value = strings::shellstring_to_string(&value, &env);
                         env.set(name, interpolated_value);
                     }
                 },
@@ -125,8 +125,8 @@ impl From<env::VarError> for Error {
     }
 }
 
-impl From<parser::Error> for Error {
-    fn from(err: parser::Error) -> Self {
+impl From<geshl::Error> for Error {
+    fn from(err: geshl::Error) -> Self {
         Error::ParserError(err)
     }
 }

@@ -2,44 +2,14 @@
 //!
 use glob;
 
-use std::{
-    ops,
+use geshl::{
+    Piece,
+    ShellString,
 };
 
 use super::{
     environment::Environment,
 };
-
-/// A string in a shell, which can have many components consisting of:
-///
-/// - fixed string components,
-/// - variable interpolations, and
-/// - path components (for example, `~` is the user's home directory).
-///
-#[derive(Clone, Debug, PartialEq)]
-pub struct ShellString {
-    pieces: Vec<Piece>,
-}
-
-/// A component of an interpolated string
-#[derive(Clone, Debug, PartialEq)]
-pub enum Piece {
-    /// A fixed string.
-    Fixed(String),
-
-    /// A glob string.
-    ///
-    /// Globs can be the following:
-    /// - `?`, to match a single character,
-    /// - `*`, to match zero or more characters,
-    /// - `**`, to match the current directory or arbitrary subdirectories,
-    /// - `[...]`, to match any character within the square brackets, or
-    /// - `[!...]`, to match any character not within the square brackets.
-    Glob(String),
-
-    /// A shell variable.
-    Variable(String),
-}
 
 /// Converts a list of `ShellString`s to a list of `String`s.
 ///
@@ -47,9 +17,9 @@ pub fn to_string_vec<V>(values: V, env: &Environment) -> Vec<String>
     where V: Iterator<Item = ShellString>
 {
     values.fold(Vec::new(), |mut acc, string| {
-        if string.has_glob() {
+        if has_glob(&string) {
             let paths = glob::glob_with(
-                &string.to_string(env),
+                &shellstring_to_string(&string, env),
                 &glob::MatchOptions {
                     case_sensitive: true,
                     require_literal_separator: true,
@@ -68,95 +38,44 @@ pub fn to_string_vec<V>(values: V, env: &Environment) -> Vec<String>
                     .collect::<Vec<_>>()
             )
         } else {
-            acc.push(string.to_string(env));
+            acc.push(shellstring_to_string(&string, env));
         }
 
         acc
     })
 }
 
-impl ShellString {
-    /// Returns whether or not there is a glob component in this `ShellString`
-    ///
-    pub fn has_glob(&self) -> bool {
-        self.pieces.iter().any(|v| {
-            if let Piece::Glob(_) = v {
-                true
-            } else {
-                false
-            }
-        })
-    }
-
-    /// Converts this shell string into a regular string.
-    ///
-    /// Path and variable interpolations are done via the given `Environment`, as specified
-    /// in `Piece::to_string`.
-    ///
-    pub fn to_string(&self, env: &Environment) -> String {
-        self.pieces.iter().map(|piece| piece.to_string(env)).collect()
-    }
-}
-
-impl ops::Add<ShellString> for ShellString {
-    type Output = ShellString;
-
-    fn add(mut self, rhs: ShellString) -> Self::Output {
-        self.pieces.extend(rhs.pieces.into_iter());
-        ShellString {
-            pieces: self.pieces
+/// Returns whether or not there is a glob component in this `ShellString`
+///
+fn has_glob(string: &ShellString) -> bool {
+    string.iter().any(|v| {
+        if let Piece::Glob(_) = v {
+            true
+        } else {
+            false
         }
-    }
+    })
 }
 
-impl <'a> From<&'a str> for ShellString {
-    fn from(value: &str) -> Self {
-        ShellString { pieces: vec![Piece::Fixed(value.to_owned())] }
-    }
+/// Converts this shell string into a regular string.
+///
+/// Path and variable interpolations are done via the given `Environment`, as specified
+/// in `Piece::to_string`.
+///
+pub fn shellstring_to_string(string: &ShellString, env: &Environment) -> String {
+    string.iter().map(|piece| piece_to_string(piece, env)).collect()
 }
 
-impl From<String> for ShellString {
-    fn from(value: String) -> Self {
-        ShellString { pieces: vec![Piece::Fixed(value)] }
-    }
-}
-
-impl From<Piece> for ShellString {
-    fn from(value: Piece) -> Self {
-        ShellString { pieces: vec![value] }
-    }
-}
-
-impl From<Vec<Piece>> for ShellString {
-    fn from(value: Vec<Piece>) -> Self {
-        ShellString { pieces: value }
-    }
-}
-
-impl Piece {
-    /// Converts this piece into a `String` with a given environment.
-    ///
-    /// If the variable referenced in `Piece::Variable` isn't in the environment, it will be
-    /// substituted with an empty string.
-    ///
-    pub fn to_string(&self, env: &Environment) -> String {
-        match &self {
-            Piece::Fixed(ref s) => s.clone(),
-            Piece::Glob(ref s) => s.clone(),
-            Piece::Variable(ref name) => env.get(&name).unwrap_or_else(|| "".to_owned()),
-        }
-    }
-}
-
-impl <'a> From<&'a str> for Piece {
-    fn from(value: &'a str) -> Self {
-        Piece::Fixed(value.to_owned())
-    }
-}
-
-impl From<String> for Piece {
-    fn from(value: String) -> Self {
-        Piece::Fixed(value)
+/// Converts this piece into a `String` with a given environment.
+///
+/// If the variable referenced in `Piece::Variable` isn't in the environment, it will be
+/// substituted with an empty string.
+///
+fn piece_to_string(piece: &Piece, env: &Environment) -> String {
+    match &piece {
+        Piece::Fixed(ref s) => s.clone(),
+        Piece::Glob(ref s) => s.clone(),
+        Piece::Variable(ref name) => env.get(&name).unwrap_or_else(|| "".to_owned()),
     }
 }
 
@@ -178,7 +97,7 @@ mod tests {
             Piece::Variable("WHAT".to_owned()),
         ]);
 
-        assert_eq!(false, string.has_glob());
+        assert_eq!(false, has_glob(&string));
     }
 
     #[test]
@@ -189,7 +108,7 @@ mod tests {
             Piece::Variable("WHAT".to_owned()),
         ]);
 
-        assert_eq!(true, string.has_glob());
+        assert_eq!(true, has_glob(&string));
     }
 
     #[test]
@@ -204,7 +123,7 @@ mod tests {
 
         let env = Environment::new(vars);
 
-        assert_eq!("this is a test".to_owned(), shell_string.to_string(&env));
+        assert_eq!("this is a test".to_owned(), shellstring_to_string(&shell_string, &env));
     }
 
     #[test]
@@ -216,7 +135,7 @@ mod tests {
 
         let env = Environment::new(HashMap::new());
 
-        assert_eq!("this is a ".to_owned(), shell_string.to_string(&env));
+        assert_eq!("this is a ".to_owned(), shellstring_to_string(&shell_string, &env));
     }
 
     #[test]

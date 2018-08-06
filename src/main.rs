@@ -2,14 +2,12 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
 
+extern crate geshl;
 extern crate glob;
-#[macro_use]
-extern crate nom;
 extern crate rustyline;
 
 mod command;
 mod environment;
-mod parser;
 mod prompt;
 mod shell;
 mod strings;
@@ -20,7 +18,7 @@ use command::ExitStatus;
 fn main() {
   let mut my_shell = shell::Shell {
     prompt: prompt::rustyline::RustylinePrompt::new(),
-    parser: parser::GeshlParser::new(),
+    parser: geshl::Parser::new(),
   };
 
   match my_shell.run() {

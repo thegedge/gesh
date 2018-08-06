@@ -3,15 +3,17 @@
 //! Provides facilities for taking an input line and producing a structured result which
 //! can more easily be evaluated.
 //!
-mod geshl;
+#[macro_use] extern crate nom;
+
+mod parser;
+mod strings;
 
 use std::result;
 
-use super::strings::ShellString;
-
-/// A parser for the geshl language.
-///
-pub type GeshlParser = geshl::Parser;
+pub use strings::{
+    Piece,
+    ShellString,
+};
 
 /// An error during parsing
 ///
@@ -56,9 +58,28 @@ pub enum ParsedLine {
     Command(Command),
 }
 
-/// A parser for shells
-pub trait Parser {
+/// A parser for geshl.
+///
+pub struct Parser;
+
+impl Parser {
+    /// Constructs a new `Parser`
+    ///
+    pub fn new() -> Parser {
+        Parser
+    }
+
     /// Parses `line` into a structured result that can be executed by a shell.
     ///
-    fn parse(&self, line: String) -> Result<ParsedLine>;
+    pub fn parse(&self, mut line: String) -> Result<ParsedLine> {
+        line.push('\n');
+
+        let parse_result = parser::parse_line(&line);
+        match parse_result {
+            Ok((_, parsed_line)) => Ok(parsed_line),
+            Err(nom::Err::Incomplete(_)) => Err(Error),
+            Err(nom::Err::Error(_)) => Err(Error),
+            Err(nom::Err::Failure(_)) => Err(Error),
+        }
+    }
 }

@@ -21,29 +21,18 @@ use std::{
     },
 };
 
-use strings::{
+use super::{
+    Command,
+    ParsedLine,
     Piece,
+    SetVariable,
     ShellString,
 };
-
-use parser::{
-    self,
-
-    Command,
-    Error,
-    ParsedLine,
-    Result,
-    SetVariable,
-};
-
-/// A parser for geshl.
-///
-pub struct Parser;
 
 /// Parses an arbitrary line.
 ///
 named!(
-    parse_line(&str) -> ParsedLine,
+    pub parse_line(&str) -> ParsedLine,
     alt!(
         command
         | set_variables => { |vars| ParsedLine::SetVariables(vars) }
@@ -328,30 +317,6 @@ fn is_path_character(chr: char) -> bool {
         '0'...'9' => true,
         '~' | '-' | '_' | '.' | '=' => true,
         _ => false,
-    }
-}
-
-impl Parser {
-    /// Constructs a new `Parser`
-    ///
-    pub fn new() -> Parser {
-        Parser
-    }
-}
-
-impl parser::Parser for Parser {
-    /// Parses `line` into a structured result that can be executed by a shell.
-    ///
-    fn parse(&self, mut line: String) -> Result<ParsedLine> {
-        line.push('\n');
-
-        let parse_result = parse_line(&line);
-        match parse_result {
-            Ok((_, parsed_line)) => Ok(parsed_line),
-            Err(nom::Err::Incomplete(_)) => Err(Error),
-            Err(nom::Err::Error(_)) => Err(Error),
-            Err(nom::Err::Failure(_)) => Err(Error),
-        }
     }
 }
 
