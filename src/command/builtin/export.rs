@@ -4,7 +4,7 @@ use command::{
     Result,
 };
 
-pub fn export(Context { env, args }: Context) -> Result {
+pub fn export(Context { env, args, .. }: Context) -> Result {
     if args.is_empty() {
         for (key, value) in env.exported_vars() {
             println!("{}={}", key, value);
@@ -32,15 +32,17 @@ pub fn export(Context { env, args }: Context) -> Result {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use command::Registry;
     use environment::Environment;
+    use super::*;
 
     #[test]
     fn test_export_prints_all_exported_vars_with_no_arguments() {
         let env = &mut Environment::empty();
         let args = vec![];
+        let registry = &Registry::for_env(&env);
 
-        let result = export(Context { env, args });
+        let result = export(Context { env, args, registry });
 
         assert_eq!(Ok(ExitStatus::Success(0)), result);
     }
@@ -56,8 +58,9 @@ mod tests {
             "FOO".to_owned(),
             "SPAM=11 eggs".to_owned(),
         ];
+        let registry = &Registry::for_env(&env);
 
-        let result = export(Context { env, args });
+        let result = export(Context { env, args, registry });
 
         assert_eq!(Ok(ExitStatus::Success(0)), result);
         assert_eq!(Some(&"bar".to_owned()), env.exported_vars().get("FOO"));

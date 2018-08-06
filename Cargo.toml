@@ -9,3 +9,9 @@ geshl = { version = "0.1.0", path = "./gesh-geshl" }
 dirs = "1.0.2"
 glob = "0.2.11"
 rustyline = "1.0.0"
+
+[workspace]
+members = [
+  ".",
+  "gesh-geshl",
+]

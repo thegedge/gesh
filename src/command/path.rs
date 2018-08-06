@@ -29,7 +29,7 @@ impl Executable {
 
     /// Execute this command within the given context.
     ///
-    pub fn execute(mut self, Context { env, args }: Context) -> Result {
+    pub fn execute(mut self, Context { env, args, .. }: Context) -> Result {
         self.command
             .envs(env.exported_vars())
             .current_dir(env.working_directory())

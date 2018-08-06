@@ -82,7 +82,7 @@ impl<R: Prompt> Shell<R> {
                     // If there are variables, we need to create a temporary environment with
                     // the new vars. Otherwise we can just use the current one.
                     let result = if vars.is_empty() {
-                        registry.execute(&cmd, Context { env: &mut env, args })
+                        registry.execute(&cmd, Context { env: &mut env, args, registry: &registry })
                     } else {
                         let mut temp_env = env.clone();
                         for SetVariable { name, value } in vars {
@@ -91,7 +91,7 @@ impl<R: Prompt> Shell<R> {
                             temp_env.export(name);
                         }
 
-                        registry.execute(&cmd, Context { env: &mut temp_env, args })
+                        registry.execute(&cmd, Context { env: &mut temp_env, args, registry: &registry })
                     };
 
                     if let Ok(ExitStatus::ExitWith(code)) = result {
