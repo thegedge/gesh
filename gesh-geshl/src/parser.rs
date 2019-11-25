@@ -7,6 +7,8 @@
 //!
 use nom::{
     self,
+
+    digit1,
     Context,
     InputTakeAtPosition,
     IResult,
@@ -25,6 +27,9 @@ use super::{
     Command,
     ParsedLine,
     Piece,
+    Redirect,
+    RedirectNode,
+    RedirectType,
     SetVariable,
     ShellString,
 };
@@ -50,7 +55,7 @@ named!(
 named!(
     set_variables(&str) -> Vec<SetVariable>,
     sep!(
-        space,
+        nom::space1,
         many1!(set_variable)
     )
 );
@@ -88,7 +93,8 @@ named!(
         do_parse!(
             vars: many0!(set_variable)
             >> args: many1!(piece)
-            >> (ParsedLine::Command(Command { vars, args }))
+            >> redirects: many0!(redirect)
+            >> (ParsedLine::Command(Command { vars, args, redirects }))
         )
     )
 );
@@ -99,15 +105,18 @@ named!(
 ///
 named!(
     piece(&str) -> ShellString,
-    fold_many1!(
-        alt!(
-            path
-            | glob
-            | interpolated_string
-            | uninterpolated_string
+    terminated!(
+        fold_many1!(
+            alt!(
+                path
+                | glob
+                | interpolated_string
+                | uninterpolated_string
+            ),
+            ShellString::from(Vec::new()),
+            |acc, string| acc + string
         ),
-        ShellString::from(Vec::new()),
-        |acc, string| acc + string
+        peek!(not!(char!('<')))
     )
 );
 
@@ -296,6 +305,89 @@ named!(
     )
 );
 
+/// Parses an IO redirect.
+///
+/// IO redirects can take several forms:
+///
+/// - `>foo.txt` would redirect the command's output to the file `foo.txt`,
+/// - `<bar.txt` would redirect `bar.txt` to the stdin of the executed command,
+/// - `5>&8` would redirect output to file descriptor 5 into file descriptor 8.
+///
+named!(
+    redirect(&str) -> Redirect,
+    map!(
+        do_parse!(
+            left: redirect_node_left
+            >> redirect_type: redirect_type
+            >> right: redirect_node_right
+            >> (left, redirect_type, right)
+        ),
+        |(left, redirect_type, right)| {
+            match redirect_type {
+                RedirectType::In => {
+                    Redirect { from: right, to: left, typ: redirect_type }
+                },
+                RedirectType::OutTruncate | RedirectType::OutAppend => {
+                    Redirect { from: left, to: right, typ: redirect_type }
+                },
+            }
+        }
+    )
+);
+
+/// Parses a redirect type.
+///
+/// ## Examples
+///
+/// - `>` redirects output, and truncates the destination
+/// - `>>` redirects output, and appends to the destination
+/// - `<` redirects input
+///
+named!(
+    redirect_type(&str) -> RedirectType,
+    alt!(
+        char!('<') => { |_| RedirectType::In }
+        | char!('>') => { |_| RedirectType::OutTruncate }
+        | tag!(">>") => { |_| RedirectType::OutAppend }
+    )
+);
+
+/// Parses a redirect node on the left side of a redirect.
+///
+/// ## Examples
+///
+/// - `foo.txt`, use a path as a node
+/// - `1`, a file descriptor
+///
+named!(
+    redirect_node_left(&str) -> Option<RedirectNode>,
+    opt!(
+        alt!(
+            path => { |p| RedirectNode::File(p) }
+            | digit1 => { |n: &str| RedirectNode::Descriptor(n.parse::<i32>().expect("should be an integer")) }
+        )
+    )
+);
+
+/// Parses a redirect node on the left side of a redirect.
+///
+/// ## Examples
+///
+/// - `foo.txt`, use a path as a node
+/// - `&1`, a file descriptor
+///
+named!(
+    redirect_node_right(&str) -> Option<RedirectNode>,
+    opt!(
+        alt!(
+            path => { |p| RedirectNode::File(p) }
+            | preceded!(char!('&'), digit1) => { |n: &str|
+                RedirectNode::Descriptor(n.parse::<i32>().expect("should be an integer"))
+            }
+        )
+    )
+);
+
 /// Split input at space characters, not including newlines / carriage returns
 ///
 fn space(input: &str) -> IResult<&str, &str> {
@@ -333,6 +425,7 @@ mod tests {
             ("\n", ParsedLine::Command(Command {
                 vars: Vec::new(),
                 args: vec![ShellString::from("./foo.sh")],
+                redirects: vec![],
             })),
             parse_line("./foo.sh\n").expect("should parse")
         );
@@ -355,6 +448,7 @@ mod tests {
                         Piece::Variable("HOME".to_owned())
                     ])
                 ],
+                redirects: vec![],
             })),
             command("/bin/echo My home 'dir is' \"${HOME}\"\n").expect("should parse")
         );
@@ -371,6 +465,7 @@ mod tests {
                     ShellString::from("export"),
                     ShellString::from("BAR=baz"),
                 ],
+                redirects: vec![],
             })),
             command("FOO=bar export BAR=baz\n").expect("should parse")
         );
@@ -629,6 +724,21 @@ mod tests {
         assert_eq!(
             ("", ShellString::from("it's \\ a test")),
             uninterpolated_string("'it\\'s \\\\ a test'").expect("should parse")
+        );
+    }
+
+    /*
+     * Tests for `redirect`
+     */
+    #[test]
+    fn test_redirect_parses_stdin_redirect_with_file() {
+        let from = Some(RedirectNode::File(ShellString::from("foo.txt")));
+        let to = None;
+        let typ = RedirectType::In;
+
+        assert_eq!(
+            ("\n", Redirect { from, to, typ }),
+            redirect("<foo.txt\n").expect("should parse")
         );
     }
 }

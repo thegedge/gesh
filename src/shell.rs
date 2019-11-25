@@ -70,7 +70,7 @@ impl<R: Prompt> Shell<R> {
             };
 
             match parsed_line {
-                ParsedLine::Command(Command { vars, args: pieces }) => {
+                ParsedLine::Command(Command { vars, args: pieces, .. }) => {
                     // First, process the pieces
                     let mut args = strings::to_string_vec(pieces.into_iter(), &env);
                     if args.is_empty() {

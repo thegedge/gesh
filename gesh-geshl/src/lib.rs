@@ -32,12 +32,47 @@ pub struct SetVariable {
     pub value: ShellString,
 }
 
+/// A node in a redirect (source/sink)
+///
+#[derive(Clone, Debug, PartialEq)]
+pub enum RedirectNode {
+    /// Redirect to/from a file path
+    File(ShellString),
+
+    /// Redirect to a file descriptor
+    Descriptor(i32),
+}
+
+/// The type of redirect.
+///
+#[derive(Clone, Debug, PartialEq)]
+pub enum RedirectType {
+    /// Redirect output, append to the output location
+    OutAppend,
+
+    /// Redirect output, truncate the output location
+    OutTruncate,
+
+    /// Redirect input from one file to another
+    In,
+}
+
+/// An IO redirect.
+///
+#[derive(Clone, Debug, PartialEq)]
+pub struct Redirect {
+    from: Option<RedirectNode>,
+    to: Option<RedirectNode>,
+    typ: RedirectType
+}
+
 /// A command and its context.
 ///
 #[derive(Clone, Debug, PartialEq)]
 pub struct Command {
     pub vars: Vec<SetVariable>,
     pub args: Vec<ShellString>,
+    pub redirects: Vec<Redirect>,
 }
 
 /// A line that has been parsed
@@ -75,6 +110,7 @@ impl Parser {
         line.push('\n');
 
         let parse_result = parser::parse_line(&line);
+        println!("{:?}", parse_result);
         match parse_result {
             Ok((_, parsed_line)) => Ok(parsed_line),
             Err(nom::Err::Incomplete(_)) => Err(Error),
